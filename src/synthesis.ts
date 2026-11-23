@@ -2,7 +2,7 @@ import type { ReportSynthesis } from "./report.ts";
 
 export interface SynthesisVersion {
   version: number;
-  status: "rascunho" | "em_revisao" | "aprovada" | "devolvida";
+  status: "rascunho" | "aprovada";
   content: ReportSynthesis;
   author: string;
   createdAt: string;
@@ -36,17 +36,14 @@ export function createSynthesisVersion(
   };
 }
 
-export function reviewSynthesis(
+export function approveSynthesis(
   draft: SynthesisVersion,
-  decision: "aprovar" | "devolver",
-  reviewNote: string,
+  reviewNote = "",
 ): SynthesisVersion {
-  if (!reviewNote.trim()) {
-    throw new Error("A revisão deve registrar uma observação.");
-  }
+  const note = reviewNote.trim();
   return {
     ...draft,
-    status: decision === "aprovar" ? "aprovada" : "devolvida",
-    reviewNote: reviewNote.trim(),
+    status: "aprovada",
+    reviewNote: note.length > 0 ? note : null,
   };
 }

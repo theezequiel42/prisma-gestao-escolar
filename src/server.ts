@@ -29,14 +29,20 @@ function escapeHtml(value: unknown): string {
     .replaceAll("'", "&#039;");
 }
 
+const groupLabels: Record<string, string> = {
+  professores: "Professores",
+  funcionarios: "Funcionários",
+  pais_responsaveis: "Pais e responsáveis",
+};
+
 function page(selectedDirector: string): string {
   const dashboard = buildDirectorDashboard(records, selectedDirector);
   const cards = Object.values(dashboard.groups)
     .map(
       (group) => `
         <article class="card">
-          <h2>${escapeHtml(group.group)}</h2>
-          <p>Submissões: <strong>${group.submissions}</strong></p>
+          <h2>${escapeHtml(groupLabels[group.group] ?? group.group)}</h2>
+          <p>Participantes: <strong>${group.submissions}</strong></p>
           <p>Média: <strong>${group.overall.mean ?? "indisponível"}</strong></p>
           <small>${escapeHtml(
             group.overall.note ??
@@ -52,7 +58,7 @@ function page(selectedDirector: string): string {
       const latestContent = latest?.content;
       return `
         <article class="card synthesis">
-          <h2>Síntese — ${escapeHtml(group)}</h2>
+          <h2>Síntese — ${escapeHtml(groupLabels[group] ?? group)}</h2>
           <p>Última versão: <strong>${latest ? `${latest.version} (${latest.status})` : "nenhuma"}</strong></p>
           <button type="button" onclick="generateSynthesis(event, '${escapeHtml(group)}')">Gerar síntese por IA</button>
           <form onsubmit="submitSynthesis(event, '${escapeHtml(group)}')">
@@ -60,14 +66,13 @@ function page(selectedDirector: string): string {
             <textarea name="perception" placeholder="Percepção predominante" required>${escapeHtml(latestContent?.perception ?? "")}</textarea>
             <textarea name="strength" placeholder="Ponto forte" required>${escapeHtml(latestContent?.strength ?? "")}</textarea>
             <textarea name="attention" placeholder="Aspecto de atenção" required>${escapeHtml(latestContent?.attention ?? "")}</textarea>
-            <button type="submit">Salvar rascunho</button>
+            <button type="submit">Salvar ajustes</button>
           </form>
           ${
-            latest && (latest.status === "rascunho" || latest.status === "em_revisao")
-              ? `<form onsubmit="reviewSynthesis(event, '${escapeHtml(group)}', ${latest.version})">
-                  <textarea name="note" placeholder="Observação da revisão" required></textarea>
-                  <button name="decision" value="aprovar" type="submit">Aprovar</button>
-                  <button name="decision" value="devolver" type="submit">Devolver para ajustes</button>
+            latest && latest.status === "rascunho"
+              ? `<form onsubmit="approveSynthesis(event, '${escapeHtml(group)}', ${latest.version})">
+                  <input name="note" placeholder="Observação da aprovação (opcional)">
+                  <button type="submit">Aprovar síntese</button>
                 </form>`
               : ""
           }
@@ -77,13 +82,19 @@ function page(selectedDirector: string): string {
   return `<!doctype html>
     <html lang="pt-BR"><head><meta charset="utf-8"><title>Avaliação de Diretores</title>
     <style>body{font:16px system-ui;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#172033}
+    .toolbar{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between}
     .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.card{border:1px solid #ccd3df;border-radius:8px;padding:1rem}
-    .notice{background:#fff4d6;padding:1rem;border-radius:8px}textarea,input{display:block;width:100%;box-sizing:border-box;margin:.5rem 0;padding:.5rem}textarea{min-height:3rem}
-    button{padding:.5rem .75rem;cursor:pointer}@media(max-width:700px){.cards{grid-template-columns:1fr}}</style>
+    .notice{background:#fff4d6;padding:1rem;border-radius:8px}textarea,input{display:block;width:100%;box-sizing:border-box;margin:.5rem 0;padding:.5rem}textarea{min-height:4rem}
+    button,.btn{display:inline-block;padding:.5rem .75rem;cursor:pointer;text-decoration:none;border:1px solid #172033;border-radius:6px;background:#fff;color:#172033}
+    @media(max-width:700px){.cards{grid-template-columns:1fr}}</style>
     </head><body><h1>Avaliação de Diretores</h1>
-    <form><label for="director">Diretor(a): </label><select id="director" name="director" onchange="this.form.submit()">
-    ${directors.map((director) => `<option ${director === selectedDirector ? "selected" : ""}>${escapeHtml(director)}</option>`).join("")}
-    </select></form><p class="notice">Prévia em revisão. Todas as médias com respostas válidas são calculadas, independentemente da quantidade mínima de respostas.</p>
+    <div class="toolbar">
+      <form><label for="director">Diretor(a): </label><select id="director" name="director" onchange="this.form.submit()">
+      ${directors.map((director) => `<option ${director === selectedDirector ? "selected" : ""}>${escapeHtml(director)}</option>`).join("")}
+      </select></form>
+      <a class="btn" href="/report.pdf?director=${encodeURIComponent(selectedDirector)}">Baixar devolutiva (PDF)</a>
+    </div>
+    <p class="notice">Ajuste e aprove as sínteses diretamente nesta tela. Os PDFs de devolutiva gerados serão encaminhados externamente.</p>
     <section class="cards">${cards}</section>
     <h2>Sínteses por público</h2><section class="cards">${synthesisForms}</section>
     <script>
@@ -108,16 +119,15 @@ function page(selectedDirector: string): string {
         if (!response.ok) { alert((await response.json()).error ?? 'Não foi possível salvar.'); return; }
         location.reload();
       }
-      async function reviewSynthesis(event, group, version) {
+      async function approveSynthesis(event, group, version) {
         event.preventDefault();
         const form = event.target;
         const data = Object.fromEntries(new FormData(form));
-        const response = await fetch('/api/syntheses/review', {
+        const response = await fetch('/api/syntheses/approve', {
           method: 'POST', headers: {'content-type': 'application/json'},
-          body: JSON.stringify({director: ${JSON.stringify(selectedDirector)}, group, version,
-            decision: data.decision, note: data.note})
+          body: JSON.stringify({director: ${JSON.stringify(selectedDirector)}, group, version, note: data.note ?? ''})
         });
-        if (!response.ok) { alert((await response.json()).error ?? 'Não foi possível revisar.'); return; }
+        if (!response.ok) { alert((await response.json()).error ?? 'Não foi possível aprovar.'); return; }
         location.reload();
       }
     </script></body></html>`;
@@ -147,6 +157,14 @@ createServer(async (request, response) => {
         throw new Error("Público não reconhecido.");
       }
       const summary = dashboard.groups[body.group as keyof typeof dashboard.groups];
+      const questions = summary.questions ?? [];
+      const topQuestions = [...questions]
+        .sort((a, b) => b.mean - a.mean || b.validCount - a.validCount)
+        .slice(0, 5);
+      const lowestQuestions = [...questions]
+        .filter((item) => item.mean < summary.overall.scale.max)
+        .sort((a, b) => a.mean - b.mean || b.validCount - a.validCount)
+        .slice(0, 5);
       const content = await generateSynthesis({
         director: body.director,
         group: body.group,
@@ -156,6 +174,8 @@ createServer(async (request, response) => {
         scale: summary.overall.scale,
         disclosureThreshold: summary.overall.disclosureThreshold,
         limitation: summary.overall.note,
+        topQuestions,
+        lowestQuestions,
       });
       const created = await synthesisStore.create(
         body.director,
@@ -201,24 +221,22 @@ createServer(async (request, response) => {
     }
     return;
   }
-  if (url.pathname === "/api/syntheses/review" && request.method === "POST") {
+  if (url.pathname === "/api/syntheses/approve" && request.method === "POST") {
     try {
       const body = (await requestBody(request)) as {
         director: string;
         group: string;
         version: number;
-        decision: "aprovar" | "devolver";
-        note: string;
+        note?: string;
       };
-      const reviewed = await synthesisStore.review(
+      const approved = await synthesisStore.approve(
         body.director,
         body.group,
         body.version,
-        body.decision,
-        body.note,
+        body.note ?? "",
       );
       response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify(reviewed));
+      response.end(JSON.stringify(approved));
     } catch (error) {
       response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
@@ -239,8 +257,18 @@ createServer(async (request, response) => {
   if (url.pathname === "/report.pdf") {
     const director = directors.includes(selectedDirector) ? selectedDirector : directors[0];
     const dashboard = buildDirectorDashboard(records, director);
+    const inferredCycle = dashboard.cycle ?? sourceFile.match(/\b(20\d{2})\b/)?.[1] ?? null;
+    const syntheses = Object.fromEntries(
+      Object.keys(dashboard.groups).map((group) => {
+        const versions = synthesisStore.list(director, group);
+        const preferred =
+          [...versions].reverse().find((entry) => entry.status === "aprovada") ??
+          versions.at(-1);
+        return [group, preferred?.content ?? null];
+      }),
+    );
     const report = buildFeedbackReport(
-      dashboard,
+      { ...dashboard, cycle: inferredCycle },
       checkPublication(
         {
           sourceFile,
@@ -257,9 +285,9 @@ createServer(async (request, response) => {
           meanRuleApproved: false,
           confidentialityThresholdApproved: false,
           questionClassificationApproved: false,
-          reviewersAssigned: false,
         },
       ),
+      syntheses,
     );
     void renderFeedbackPdf(report).then((pdf) => {
       response.writeHead(200, {

@@ -21,11 +21,10 @@ test("persiste versões e decisões de revisão de sínteses", async () => {
       },
       "Equipe",
     );
-    const approved = await store.review(
+    const approved = await store.approve(
       "Diretora A",
       "professores",
       1,
-      "aprovar",
       "Aprovada.",
     );
     assert.equal(approved.status, "aprovada");

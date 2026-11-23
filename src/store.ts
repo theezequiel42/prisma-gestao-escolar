@@ -2,8 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ReportSynthesis } from "./report.ts";
 import {
+  approveSynthesis,
   createSynthesisVersion,
-  reviewSynthesis,
   type SynthesisVersion,
 } from "./synthesis.ts";
 
@@ -60,12 +60,11 @@ export class SynthesisStore {
     return entry;
   }
 
-  public async review(
+  public async approve(
     director: string,
     group: string,
     version: number,
-    decision: "aprovar" | "devolver",
-    note: string,
+    note = "",
   ): Promise<StoredSynthesis> {
     const index = this.entries.findIndex(
       (entry) =>
@@ -76,7 +75,7 @@ export class SynthesisStore {
     if (index < 0) throw new Error("Versão de síntese não encontrada.");
     const current = this.entries[index];
     const updated: StoredSynthesis = {
-      ...reviewSynthesis(current, decision, note),
+      ...approveSynthesis(current, note),
       director,
       group,
     };

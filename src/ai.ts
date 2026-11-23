@@ -1,5 +1,11 @@
 import type { ReportSynthesis } from "./report.ts";
 
+export interface QuestionEvidence {
+  question: string;
+  mean: number;
+  validCount: number;
+}
+
 export interface AiEvidence {
   director: string;
   group: string;
@@ -9,6 +15,21 @@ export interface AiEvidence {
   scale: { min: number; max: number };
   disclosureThreshold: number;
   limitation: string | null;
+  topQuestions?: QuestionEvidence[];
+  lowestQuestions?: QuestionEvidence[];
+}
+
+const groupLabels: Record<string, string> = {
+  professores: "professores e equipe pedagógica",
+  funcionarios: "funcionários da escola",
+  pais_responsaveis: "pais e responsáveis",
+};
+
+function formatQuestionList(items?: QuestionEvidence[]): string {
+  if (!items || items.length === 0) return "nenhum item específico informado";
+  return items
+    .map((item) => `- (${item.mean}/${5}) ${item.question.replace(/\s+/g, " ").trim()}`)
+    .join("\n");
 }
 
 export interface AiProvider {
@@ -80,30 +101,45 @@ export function createOpenAiCompatibleProvider(
 
   return {
     async generate(evidence: AiEvidence): Promise<ReportSynthesis> {
-      const prompt = `Você é um assistente de análise educacional institucional.
-Gere uma síntese breve e respeitosa em português brasileiro a partir exclusivamente dos dados abaixo.
-Não atribua causas, intenções, culpa ou competência pessoal.
-Não use superlativos, diagnósticos ou recomendações apresentadas como fatos.
-Cada campo deve conter uma única frase curta.
-Responda somente em JSON válido com: perception, strength, attention.
+      const groupLabel = groupLabels[evidence.group] ?? evidence.group;
+      const lowestBlock =
+        evidence.lowestQuestions && evidence.lowestQuestions.length > 0
+          ? formatQuestionList(evidence.lowestQuestions)
+          : "nenhum item ficou abaixo da nota máxima";
+      const prompt = `Você ajuda a Secretaria Municipal de Educação a preparar devolutivas humanas, claras e respeitosas para diretores escolares.
+Escreva uma síntese em português brasileiro com linguagem simples, acolhedora e fácil de entender, falando sobre as impressões do público a respeito do trabalho do(a) diretor(a) no dia a dia da escola.
 
-Diretor: ${evidence.director}
-Público: ${evidence.group}
-Submissões: ${evidence.submissions}
-Respostas válidas: ${evidence.validCount}
-Escala: ${evidence.scale.min} a ${evidence.scale.max}
-Média: ${evidence.mean === null ? "indisponível" : evidence.mean}
-Limite mínimo de divulgação: ${evidence.disclosureThreshold}
-Limitação: ${evidence.limitation ?? "nenhuma"}
+Regras importantes:
+- Use linguagem cotidiana e acessível. NÃO use jargões técnicos ou estatísticos (evite palavras como "submissões", "respostas válidas", "indicador", "escala de 1 a 5", "conjunto de dados", "limite mínimo de divulgação" ou "amostra").
+- Fale sobre o que esse grupo percebe na atuação do(a) diretor(a) (como diálogo, acolhimento, organização, apoio à equipe, parceria com famílias, segurança ou acompanhamento pedagógico), usando exclusivamente os temas das perguntas listadas abaixo.
+- Seja respeitoso e construtivo: não atribua culpa, intenções nem faça julgamentos pessoais. Não invente fatos que não apareçam nos dados abaixo.
+- Em "perception", faça um resumo simples (1 a 2 frases curtas) da impressão geral desse grupo sobre o(a) diretor(a).
+- Em "strength", destaque em linguagem simples (1 a 2 frases curtas) o que o grupo mais valorizou na atuação do(a) diretor(a), com base nos pontos mais bem avaliados.
+- Em "attention", aponte de forma leve e construtiva (1 a 2 frases curtas) os pontos com avaliação mais baixa que merecem mais atenção ou conversa. Se nenhum item ficou abaixo da nota máxima, diga de forma simples que não apareceram pontos de preocupação e que vale seguir mantendo o bom diálogo com esse grupo.
+- Responda somente em JSON válido com as chaves: perception, strength, attention.
+
+Diretor(a): ${evidence.director}
+Público que respondeu: ${groupLabel} (${evidence.submissions} participantes)
+Avaliação geral (referência interna para calibrar o tom): ${evidence.mean === null ? "sem respostas suficientes" : `${evidence.mean} de ${evidence.scale.max}`}
+${evidence.limitation ? `Observação: ${evidence.limitation}\n` : ""}
+Pontos mais bem avaliados por este grupo:
+${formatQuestionList(evidence.topQuestions)}
+
+Pontos com avaliação mais baixa por este grupo:
+${lowestBlock}
 `;
       const response = await fetchImpl(url, {
         method: "POST",
         headers,
         body: JSON.stringify({
           model,
-          temperature: 0.2,
+          temperature: 0.3,
           messages: [
-            { role: "system", content: "Produza textos institucionais fundamentados nos dados." },
+            {
+              role: "system",
+              content:
+                "Você escreve devolutivas escolares em linguagem simples, humana e respeitosa, focadas nas impressões sobre o trabalho do(a) diretor(a), sempre fiel aos dados recebidos.",
+            },
             { role: "user", content: prompt },
           ],
         }),

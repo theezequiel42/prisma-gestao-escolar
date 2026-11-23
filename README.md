@@ -12,9 +12,10 @@ indicadores.
 
 A primeira entrega corresponde à Etapa A definida no
 [PRD de Avaliação de Diretores e Devolutivas](./PRD%20-%20Avalia%C3%A7%C3%A3o%20de%20Diretores%20e%20Devolutivas.md).
-Ela utiliza a planilha unificada de 2026 como fonte de entrada e prepara a
-evolução futura para persistência em banco de dados, perfis de acesso, novos
-ciclos e histórico de avaliações.
+Ela utiliza a planilha unificada de 2026 como fonte de entrada, sem perfis
+separados de acesso — a equipe ajusta e aprova as sínteses na mesma interface e
+encaminha externamente os PDFs de devolutiva gerados. A evolução futura prepara
+persistência em banco de dados, novos ciclos e histórico de avaliações.
 
 ## Estado atual
 
@@ -33,7 +34,7 @@ O incremento implementado:
   não estiverem aprovadas;
 - cria um modelo versionado de devolutiva, mantendo recorte, indicadores e
   metodologia alinhados ao dashboard;
-- permite criar, revisar, devolver e aprovar versões de sínteses por público;
+- permite criar, ajustar na mesma interface e aprovar versões de sínteses por público;
 - sinaliza bases bloqueadas ou em revisão, sem publicar resultados oficiais;
 - preserva a origem dos dados e não deduplica respostas sem decisão institucional;
 - evita interpretar comentários e desenhos XML da planilha como dados.
@@ -56,23 +57,20 @@ respostas, diretores, colunas agrupadas, abas auxiliares e pendências. Uma base
 com erro fica `bloqueada`; uma base reconhecida permanece `em_revisao` até a
 validação institucional.
 
-O comando `start` inicia um dashboard local em `http://localhost:3000`, com
-seleção de diretor e cartões para professores, funcionários e
-pais/responsáveis. Ele é uma prévia em revisão, não um portal autenticado nem
-uma publicação oficial. A rota `/report.pdf?director=...` gera uma devolutiva
-individual preliminar usando o mesmo recorte do dashboard; ela não envia o
-arquivo nem libera resultados oficiais.
+O comando `start` inicia o dashboard local em `http://localhost:3000`, com
+seleção de diretor, cartões para professores, funcionários e pais/responsáveis e
+botão para baixar a devolutiva em PDF (`/report.pdf?director=...`), destinada a
+encaminhamento externo pela equipe.
 
-O dashboard também apresenta formulários para criar rascunhos das três
-sínteses por público e mostra a última versão persistida de cada uma.
-Versões em rascunho podem ser aprovadas ou devolvidas para ajustes com uma
-observação obrigatória.
+O dashboard também apresenta formulários para gerar, ajustar diretamente na
+mesma tela e aprovar as três sínteses por público, exibindo a última versão
+persistida de cada uma.
 
 ## Geração das sínteses por IA
 
-As sínteses podem ser geradas pelo dashboard a partir somente dos agregados do
-diretor e do público. O texto não é publicado automaticamente: todo rascunho
-gerado por IA pode ser revisado e aprovado ou devolvido pela equipe.
+As sínteses podem ser geradas pelo dashboard a partir dos dados agregados e das
+perguntas respondidas de cada público. Todo rascunho gerado por IA pode ser
+editado diretamente na mesma interface e aprovado pela equipe.
 
 A integração usa OpenAI ou um endpoint compatível por variáveis de ambiente:
 
@@ -118,8 +116,8 @@ os dados sem repetir os cálculos de indicadores.
 
 O fluxo de sínteses usa armazenamento local em `.data/syntheses.json` (ou no
 caminho definido por `SYNTHESIS_STORE`) e oferece `POST /api/syntheses` para
-criação, `GET /api/syntheses?director=...&group=...` para consulta e
-`POST /api/syntheses/review` para aprovar ou devolver uma versão.
+criação/ajustes, `GET /api/syntheses?director=...&group=...` para consulta e
+`POST /api/syntheses/approve` para aprovar uma versão.
 
 Este incremento ainda não publica resultados oficiais, não deduplica respostas
 e não presume equivalência entre perguntas pela posição ou pelo texto. O leitor

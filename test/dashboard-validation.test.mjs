@@ -85,11 +85,10 @@ test("publicação permanece bloqueada sem decisões institucionais", () => {
     meanRuleApproved: false,
     confidentialityThresholdApproved: false,
     questionClassificationApproved: false,
-    reviewersAssigned: false,
   });
 
   assert.equal(result.state, "em_revisao");
-  assert.equal(result.blockers.length, 3);
+  assert.equal(result.blockers.length, 2);
   assert.equal(result.warnings.length, 1);
 });
 

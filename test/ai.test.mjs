@@ -62,6 +62,8 @@ test("usa o modelo Gemini por configuração compatível", async () => {
     assert.match(init?.headers?.authorization, /Bearer chave-de-teste/);
     const body = JSON.parse(init?.body);
     assert.equal(body.model, "gemini-2.5-flash");
+    assert.match(body.messages[1].content, /linguagem simples/i);
+    assert.match(body.messages[1].content, /Pontos mais bem avaliados/);
     return new Response(
       JSON.stringify({
         choices: [{

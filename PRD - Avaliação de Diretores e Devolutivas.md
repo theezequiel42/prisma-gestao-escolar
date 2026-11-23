@@ -8,7 +8,7 @@
 
 Aplicação para transformar os resultados das avaliações dos diretores da rede municipal em informações compreensíveis, confiáveis e úteis à gestão educacional. Deve permitir consultar os dados em um dashboard, compreender a percepção de cada grupo de respondentes e produzir devolutivas individuais em PDF para os gestores avaliados.
 
-A primeira versão utilizará a planilha unificada existente. A evolução deverá permitir gestão persistente das informações em banco de dados, diferentes perfis de usuários e cadastros de pessoas, unidades, perguntas e ciclos avaliativos, sem perder o histórico nem alterar o significado dos resultados anteriores.
+A primeira versão utilizará a planilha unificada existente. A evolução deverá permitir gestão persistente das informações em banco de dados e cadastros de pessoas, unidades, perguntas e ciclos avaliativos, sem perder o histórico nem alterar o significado dos resultados anteriores. A operação permanece centralizada na equipe interna da Secretaria, sem perfis separados de acesso, com os PDFs de devolutiva encaminhados externamente aos diretores.
 
 ## 2. Problema a resolver
 
@@ -29,23 +29,13 @@ O produto deve entregar uma leitura padronizada, mas sensível às particularida
 
 ## 4. Público e responsabilidades
 
-### 4.1 Primeira versão
+### 4.1 Uso unificado pela equipe interna
 
-Uso interno por equipe autorizada da Secretaria Municipal de Educação. Deve existir distinção operacional entre dados em revisão e resultados liberados. A ausência inicial de um cadastro completo de usuários não autoriza acesso público aos dados.
+A aplicação é operada de forma unificada pela equipe autorizada da Secretaria Municipal de Educação, **sem perfis separados de acesso** (não há separação entre perfil de elaboração, perfil de revisão/devolução ou portal de acesso individual para diretores).
 
-### 4.2 Perfis previstos para evolução
+Os ajustes nas sínteses e a aprovação ocorrem diretamente na mesma interface. Após gerados, os PDFs individuais de devolutiva são encaminhados externamente aos diretores avaliados pelos canais institucionais da Secretaria.
 
-| Perfil proposto | Necessidade de acesso |
-|---|---|
-| Administração institucional | Gerir usuários, permissões, ciclos e cadastros, conforme atribuições autorizadas. |
-| Equipe de avaliação | Validar bases, consultar resultados e preparar devolutivas no âmbito autorizado. |
-| Revisão e aprovação | Revisar análises e aprovar ou devolver relatórios para ajustes. |
-| Diretor(a) avaliado(a) | Consultar exclusivamente os resultados e devolutivas liberados para si. |
-| Consulta gerencial | Consultar consolidados autorizados, sem acesso automático às respostas individuais. |
-
-A matriz definitiva de permissões depende de aprovação institucional. Uma pessoa pode acumular papéis quando autorizado; o papel administrativo não implica autorização irrestrita sobre todo o conteúdo.
-
-**Distinção obrigatória:** perfil de usuário da aplicação não é perfil de respondente do questionário. Professores, funcionários e pais/responsáveis são grupos de análise; não devem ser transformados automaticamente em contas de acesso.
+**Distinção obrigatória:** professores, funcionários e pais/responsáveis são grupos de respondentes do questionário (recortes de análise), não contas ou perfis de acesso da aplicação.
 
 ## 5. Base inicial e limites conhecidos
 
@@ -72,10 +62,10 @@ As abas auxiliares registram as faixas de origem e o mapa das perguntas. A aplic
 2. O produto informa conteúdo reconhecido, contagens, diferenças de questionários e pendências.
 3. A equipe revisa as pendências e autoriza a base para análise.
 4. O usuário seleciona um diretor e consulta resultados por público, pergunta e dimensão disponível.
-5. A equipe prepara e revisa as sínteses de cada público.
-6. O produto apresenta uma prévia da devolutiva individual.
-7. A pessoa autorizada aprova o relatório, ou o devolve para ajustes.
-8. O PDF aprovado fica disponível para exportação e, na evolução do produto, para consulta pelo diretor autorizado.
+5. A equipe gera ou edita as sínteses de cada público diretamente na mesma interface.
+6. O produto apresenta o conteúdo consolidado da devolutiva individual.
+7. A equipe aprova as sínteses e gera o PDF individual da devolutiva.
+8. O PDF gerado é exportado e encaminhado externamente ao diretor avaliado.
 
 ## 7. Requisitos funcionais — primeira versão
 
@@ -201,11 +191,11 @@ Cadastros previstos:
 - **Questionários:** conjuntos de perguntas aplicáveis a cada público e contexto, com vigência e versão.
 - **Ciclos avaliativos:** período, escopo, avaliações vinculadas e situação de abertura, revisão ou encerramento.
 
-### Etapa C — Acesso por perfis e acompanhamento histórico
+### Etapa C — Acompanhamento histórico entre ciclos
 
-Permitir contas e permissões por responsabilidade institucional e escopo de atuação; acesso individual dos diretores às próprias devolutivas aprovadas; acompanhamento de diferentes ciclos; e comparações históricas somente quando metodologicamente justificadas.
+Permitir o acompanhamento de diferentes ciclos avaliativos e comparações históricas somente quando metodologicamente justificadas, mantendo o uso interno unificado pela equipe (sem perfis separados ou portal para diretores) e a exportação dos PDFs para encaminhamento externo.
 
-A transição da planilha para banco de dados deve reconciliar integralmente registros e resultados aprovados. Nenhum usuário deve perder o acesso autorizado ao histórico por mudança do formato de armazenamento.
+A transição da planilha para banco de dados deve reconciliar integralmente registros e resultados aprovados, preservando integralmente o histórico.
 
 ## 10. Requisitos de qualidade, segurança e governança
 
@@ -241,21 +231,18 @@ A transição da planilha para banco de dados deve reconciliar integralmente reg
 7. O PDF corresponde ao mesmo recorte e versão aprovados, é legível e não contém detalhes individuais de respondentes.
 8. Resultados não aprovados são identificados como preliminares; alterações relevantes exigem nova revisão.
 9. A exportação em lote reconcilia documentos esperados, concluídos e pendentes.
-10. Na evolução de acesso individual, um diretor não consegue consultar ou exportar avaliações de outro sem permissão expressa.
-11. Na evolução dos cadastros, mudanças de vínculo ou enunciado não reescrevem avaliações anteriores.
-12. Na migração para banco de dados, os totais e resultados aprovados permanecem reconciliados com a fonte anterior.
+10. Na evolução dos cadastros, mudanças de vínculo ou enunciado não reescrevem avaliações anteriores.
+11. Na migração para banco de dados, os totais e resultados aprovados permanecem reconciliados com a fonte anterior.
 
 ## 13. Decisões pendentes antes da liberação oficial
 
-- Responsáveis pela validação da base, revisão das sínteses e aprovação dos PDFs.
 - Regra oficial de cálculo das médias e arredondamento.
-- Correspondência entre rótulos de perfis e grupos apresentados ao usuário.
+- Correspondência entre rótulos de perfis respondentes e grupos apresentados ao usuário.
 - Classificação das perguntas por dimensão e equivalências admitidas entre versões.
 - Política para duplicidades, correções e reapresentação de bases.
-- Limite mínimo de divulgação e política para contagens de grupos pequenos.
 - Critérios para classificar pontos fortes e aspectos de atenção, inclusive empates e diferenças pequenas.
 - Universo elegível e unidade de contagem para eventual taxa de participação.
 - Identificação institucional e conteúdo obrigatório da devolutiva oficial.
-- Matriz de permissões, retenção, exclusão e acesso ao histórico após troca de diretor.
+- Política de retenção e arquivamento das devolutivas encaminhadas externamente.
 
 **Princípio de aprovação:** hipóteses e propostas deste PRD não substituem decisões institucionais. Pendências que afetem cálculo, privacidade ou significado dos resultados impedem a liberação oficial do conteúdo afetado, sem impedir sua revisão interna identificada como preliminar.

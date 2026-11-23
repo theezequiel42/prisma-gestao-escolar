@@ -8,7 +8,6 @@ export interface InstitutionalDecisions {
   meanRuleApproved: boolean;
   confidentialityThresholdApproved: boolean;
   questionClassificationApproved: boolean;
-  reviewersAssigned: boolean;
 }
 
 export function checkPublication(
@@ -22,9 +21,6 @@ export function checkPublication(
     .filter((entry) => entry.severity === "alerta")
     .map((entry) => entry.message);
 
-  if (!decisions.reviewersAssigned) {
-    blockers.push("Responsáveis pela revisão e aprovação ainda não foram definidos.");
-  }
   if (!decisions.meanRuleApproved) {
     blockers.push("A regra oficial de cálculo das médias ainda não foi aprovada.");
   }
@@ -40,8 +36,7 @@ export function checkPublication(
     state = assessment.status === "bloqueada" ? "bloqueada" : "em_revisao";
   } else if (
     decisions.meanRuleApproved &&
-    decisions.confidentialityThresholdApproved &&
-    decisions.reviewersAssigned
+    decisions.confidentialityThresholdApproved
   ) {
     state = "aprovada";
   }

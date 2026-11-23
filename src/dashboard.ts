@@ -5,10 +5,17 @@ import type {
 } from "./domain.ts";
 import { calculateIndicator } from "./metrics.ts";
 
+export interface QuestionIndicator {
+  question: string;
+  mean: number;
+  validCount: number;
+}
+
 export interface GroupDashboard {
   group: RespondentGroup;
   submissions: number;
   overall: IndicatorResult;
+  questions?: QuestionIndicator[];
 }
 
 export interface DirectorDashboard {
@@ -44,12 +51,34 @@ export function buildDirectorDashboard(
                   typeof answerKey === "string" ? answerKey : answerKey[group] ?? ""
                 ],
             );
+      const questionKeys =
+        answerKey === undefined
+          ? [...new Set(groupRecords.flatMap((record) => Object.keys(record.answers)))]
+          : [typeof answerKey === "string" ? answerKey : answerKey[group] ?? ""].filter(
+              Boolean,
+            );
+      const questions: QuestionIndicator[] = questionKeys
+        .map((question) => {
+          const indicator = calculateIndicator(
+            groupRecords.map((record) => record.answers[question]),
+            { minimum: minimumResponses },
+          );
+          return indicator.mean === null
+            ? null
+            : {
+                question,
+                mean: indicator.mean,
+                validCount: indicator.validCount,
+              };
+        })
+        .filter((entry): entry is QuestionIndicator => entry !== null);
       return [
         group,
         {
           group,
           submissions: groupRecords.length,
           overall: calculateIndicator(values, { minimum: minimumResponses }),
+          questions,
         },
       ];
     }),
