@@ -34,6 +34,7 @@ export function buildFeedbackReport(
   );
   const allIndicators = Object.values(dashboard.groups).map((group) => group.overall);
   const firstIndicator = allIndicators[0];
+  const disclosureThreshold = firstIndicator?.disclosureThreshold ?? 1;
   return {
     version: 1,
     state: publication.state,
@@ -45,10 +46,12 @@ export function buildFeedbackReport(
     syntheses,
     methodology: {
       scale: firstIndicator?.scale ?? { min: 1, max: 5 },
-      disclosureThreshold: firstIndicator?.disclosureThreshold ?? 5,
+      disclosureThreshold,
       notes: [
         "Somente respostas válidas entram nos indicadores.",
-        "Contagens abaixo do limite de confidencialidade não são divulgadas.",
+        disclosureThreshold > 1
+          ? "Contagens abaixo do limite de confidencialidade não são divulgadas."
+          : "Médias calculadas a partir de todas as respostas válidas disponíveis, sem exigência de quantidade mínima de respostas.",
         ...publication.blockers,
         ...publication.warnings,
       ],

@@ -8,7 +8,7 @@ export interface IndicatorOptions {
 }
 
 const defaultOptions: IndicatorOptions = {
-  minimum: 5,
+  minimum: 1,
   scaleMin: 1,
   scaleMax: 5,
   decimals: 2,
@@ -49,7 +49,10 @@ export function calculateIndicator(
       scale: { min: config.scaleMin, max: config.scaleMax },
       disclosed: false,
       disclosureThreshold: config.minimum,
-      note: `Indicador indisponível: são necessárias pelo menos ${config.minimum} respostas válidas.`,
+      note:
+        config.minimum <= 1
+          ? "Indicador indisponível: não há respostas válidas."
+          : `Indicador indisponível: são necessárias pelo menos ${config.minimum} respostas válidas.`,
     };
   }
 

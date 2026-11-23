@@ -16,11 +16,8 @@ const synthesisStore = new SynthesisStore(
 );
 await synthesisStore.load();
 const directors = [...new Set(records.map((record) => record.director))].sort();
-const answerKeys = Object.fromEntries(
-  records.map((record) => [record.group, Object.keys(record.answers)[0]]),
-);
-if (Object.keys(answerKeys).length === 0) {
-  throw new Error("Nenhuma pergunta reconhecida para montar o dashboard.");
+if (directors.length === 0) {
+  throw new Error("Nenhum diretor reconhecido para montar o dashboard.");
 }
 
 function escapeHtml(value: unknown): string {
@@ -33,7 +30,7 @@ function escapeHtml(value: unknown): string {
 }
 
 function page(selectedDirector: string): string {
-  const dashboard = buildDirectorDashboard(records, selectedDirector, answerKeys);
+  const dashboard = buildDirectorDashboard(records, selectedDirector);
   const cards = Object.values(dashboard.groups)
     .map(
       (group) => `
@@ -86,7 +83,7 @@ function page(selectedDirector: string): string {
     </head><body><h1>Avaliação de Diretores</h1>
     <form><label for="director">Diretor(a): </label><select id="director" name="director" onchange="this.form.submit()">
     ${directors.map((director) => `<option ${director === selectedDirector ? "selected" : ""}>${escapeHtml(director)}</option>`).join("")}
-    </select></form><p class="notice">Prévia em revisão. Médias com menos de cinco respostas válidas permanecem indisponíveis.</p>
+    </select></form><p class="notice">Prévia em revisão. Todas as médias com respostas válidas são calculadas, independentemente da quantidade mínima de respostas.</p>
     <section class="cards">${cards}</section>
     <h2>Sínteses por público</h2><section class="cards">${synthesisForms}</section>
     <script>
@@ -145,7 +142,7 @@ createServer(async (request, response) => {
       if (!directors.includes(body.director)) {
         throw new Error("Diretor não reconhecido.");
       }
-      const dashboard = buildDirectorDashboard(records, body.director, answerKeys);
+      const dashboard = buildDirectorDashboard(records, body.director);
       if (!(body.group in dashboard.groups)) {
         throw new Error("Público não reconhecido.");
       }
@@ -236,12 +233,12 @@ createServer(async (request, response) => {
   if (url.pathname === "/api/dashboard") {
     const director = directors.includes(selectedDirector) ? selectedDirector : directors[0];
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify(buildDirectorDashboard(records, director, answerKeys)));
+    response.end(JSON.stringify(buildDirectorDashboard(records, director)));
     return;
   }
   if (url.pathname === "/report.pdf") {
     const director = directors.includes(selectedDirector) ? selectedDirector : directors[0];
-    const dashboard = buildDirectorDashboard(records, director, answerKeys);
+    const dashboard = buildDirectorDashboard(records, director);
     const report = buildFeedbackReport(
       dashboard,
       checkPublication(

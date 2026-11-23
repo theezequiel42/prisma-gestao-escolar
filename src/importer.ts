@@ -57,6 +57,39 @@ function inferGroup(header: string): string | undefined {
   )?.[0];
 }
 
+function inferProfileGroup(profile: unknown): RespondentGroup | undefined {
+  const value = normalized(profile);
+  if (!value) return undefined;
+  if (
+    value.includes("professor") ||
+    value.includes("docente") ||
+    value.includes("coordenador") ||
+    value.includes("psicopedagog")
+  ) {
+    return "professores";
+  }
+  if (value.includes("funcion") || value.includes("servidor")) {
+    return "funcionarios";
+  }
+  if (
+    value.includes("pai") ||
+    value.includes("mae") ||
+    value.includes("respons") ||
+    value.includes("famil")
+  ) {
+    return "pais_responsaveis";
+  }
+  return undefined;
+}
+
+function mapBlockToGroup(block: string): RespondentGroup | undefined {
+  const value = normalized(block);
+  if (value === "docentes") return "professores";
+  if (value === "funcionarios") return "funcionarios";
+  if (value === "familias") return "pais_responsaveis";
+  return undefined;
+}
+
 function issue(
   code: string,
   severity: ImportIssue["severity"],
@@ -258,6 +291,41 @@ export async function readAssessmentRecords(
     throw new Error("A coluna de identificação do diretor não foi encontrada.");
   }
   const directorIndex = headers.indexOf(directorHeader) + 1;
+  const profileIndex = headers.findIndex((header) => normalized(header).includes("perfil")) + 1;
+  const questionMap = readQuestionMap(workbook);
+  const blockColumns = new Map<RespondentGroup, number[]>();
+  for (const entry of questionMap) {
+    if (entry.unifiedColumn === null) continue;
+    const group = mapBlockToGroup(entry.block);
+    if (!group) continue;
+    const current = blockColumns.get(group) ?? [];
+    if (!current.includes(entry.unifiedColumn)) {
+      current.push(entry.unifiedColumn);
+      blockColumns.set(group, current);
+    }
+  }
+
+  if (profileIndex > 0 && blockColumns.size > 0) {
+    const records: AssessmentRecord[] = [];
+    responseSheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const director = String(row.getCell(directorIndex).value ?? "").trim();
+      if (!director) return;
+      const group = inferProfileGroup(row.getCell(profileIndex).value);
+      if (!group) return;
+      const columns = blockColumns.get(group) ?? [];
+      const answers: Record<string, unknown> = {};
+      for (const column of columns) {
+        const value = row.getCell(column).value;
+        if (value !== null && value !== undefined && value !== "") {
+          answers[headers[column - 1]] = value;
+        }
+      }
+      records.push({ director, group, answers });
+    });
+    return records;
+  }
+
   const groupColumns = new Map<RespondentGroup, number[]>();
   for (const [index, header] of headers.entries()) {
     const group = inferGroup(header) as RespondentGroup | undefined;

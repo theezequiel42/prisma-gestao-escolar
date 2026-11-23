@@ -26,7 +26,8 @@ O incremento implementado:
   lote, colunas de origem/unificada, bloco e cabeçalho;
 - identifica grupos de perguntas e a coluna do diretor avaliado;
 - calcula indicadores apenas com valores válidos da escala de 1 a 5;
-- informa o denominador e oculta médias de grupos com menos de cinco respostas;
+- informa o denominador e calcula as médias para todos os diretores com respostas
+  válidas, independentemente de uma quantidade mínima de respostas;
 - monta um resumo de dashboard por diretor com os três públicos;
 - controla bloqueios para publicação oficial enquanto decisões institucionais
   não estiverem aprovadas;

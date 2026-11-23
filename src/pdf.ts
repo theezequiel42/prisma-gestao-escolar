@@ -32,7 +32,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
       .text(
         `Média: ${
           summary.overall.mean === null
-            ? "indisponível por confidencialidade ou insuficiência de dados"
+            ? summary.overall.note ?? "indisponível por ausência de respostas válidas"
             : summary.overall.mean
         }`,
       );
