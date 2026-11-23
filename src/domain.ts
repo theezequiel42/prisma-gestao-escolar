@@ -33,3 +33,32 @@ export interface AssessmentImport {
   issues: ImportIssue[];
   status: "em_revisao" | "bloqueada";
 }
+
+export type PublicationState =
+  | "em_revisao"
+  | "preliminar"
+  | "aprovada"
+  | "bloqueada";
+
+export interface AssessmentRecord {
+  director: string;
+  group: RespondentGroup;
+  answers: Record<string, unknown>;
+  cycle?: string;
+  unit?: string;
+}
+
+export interface PublicationCheck {
+  state: PublicationState;
+  blockers: string[];
+  warnings: string[];
+}
+
+export interface IndicatorResult {
+  validCount: number;
+  mean: number | null;
+  scale: { min: number; max: number };
+  disclosed: boolean;
+  disclosureThreshold: number;
+  note: string | null;
+}

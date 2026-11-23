@@ -23,6 +23,14 @@ O incremento implementado:
 - reconhece a aba de respostas e diferencia as abas auxiliares;
 - reconcilia a base com 2.202 respostas, 27 diretores e 132 colunas;
 - identifica grupos de perguntas e a coluna do diretor avaliado;
+- calcula indicadores apenas com valores válidos da escala de 1 a 5;
+- informa o denominador e oculta médias de grupos com menos de cinco respostas;
+- monta um resumo de dashboard por diretor com os três públicos;
+- controla bloqueios para publicação oficial enquanto decisões institucionais
+  não estiverem aprovadas;
+- cria um modelo versionado de devolutiva, mantendo recorte, indicadores e
+  metodologia alinhados ao dashboard;
+- permite criar, revisar, devolver e aprovar versões de sínteses por público;
 - sinaliza bases bloqueadas ou em revisão, sem publicar resultados oficiais;
 - preserva a origem dos dados e não deduplica respostas sem decisão institucional;
 - evita interpretar comentários e desenhos XML da planilha como dados.
