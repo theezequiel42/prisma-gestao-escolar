@@ -60,7 +60,6 @@ function page(selectedDirector: string): string {
         <article class="card synthesis">
           <h2>Síntese — ${escapeHtml(groupLabels[group] ?? group)}</h2>
           <p>Última versão: <strong>${latest ? `${latest.version} (${latest.status})` : "nenhuma"}</strong></p>
-          <button type="button" onclick="generateSynthesis(event, '${escapeHtml(group)}')">Gerar síntese por IA</button>
           <form onsubmit="submitSynthesis(event, '${escapeHtml(group)}')">
             <input name="author" placeholder="Responsável" value="${escapeHtml(latest?.author ?? "")}" required>
             <textarea name="perception" placeholder="Percepção predominante" required>${escapeHtml(latestContent?.perception ?? "")}</textarea>
@@ -96,16 +95,34 @@ function page(selectedDirector: string): string {
     </div>
     <p class="notice">Ajuste e aprove as sínteses diretamente nesta tela. Os PDFs de devolutiva gerados serão encaminhados externamente.</p>
     <section class="cards">${cards}</section>
-    <h2>Sínteses por público</h2><section class="cards">${synthesisForms}</section>
+    <div class="toolbar">
+      <h2>Sínteses por público</h2>
+      <button type="button" onclick="generateAllSyntheses(event)">Gerar síntese por IA</button>
+    </div>
+    <section class="cards">${synthesisForms}</section>
     <script>
-      async function generateSynthesis(event, group) {
+      async function generateAllSyntheses(event) {
         event.preventDefault();
-        const response = await fetch('/api/syntheses/generate', {
-          method: 'POST', headers: {'content-type': 'application/json'},
-          body: JSON.stringify({director: ${JSON.stringify(selectedDirector)}, group, author: 'IA'})
-        });
-        if (!response.ok) { alert((await response.json()).error ?? 'Não foi possível gerar a síntese.'); return; }
-        location.reload();
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = 'Gerando sínteses...';
+        try {
+          const response = await fetch('/api/syntheses/generate', {
+            method: 'POST', headers: {'content-type': 'application/json'},
+            body: JSON.stringify({director: ${JSON.stringify(selectedDirector)}, author: 'IA'})
+          });
+          if (!response.ok) {
+            alert((await response.json()).error ?? 'Não foi possível gerar as sínteses.');
+            button.disabled = false;
+            button.textContent = 'Gerar síntese por IA';
+            return;
+          }
+          location.reload();
+        } catch (error) {
+          alert('Não foi possível gerar as sínteses.');
+          button.disabled = false;
+          button.textContent = 'Gerar síntese por IA';
+        }
       }
       async function submitSynthesis(event, group) {
         event.preventDefault();
@@ -146,46 +163,59 @@ createServer(async (request, response) => {
     try {
       const body = (await requestBody(request)) as {
         director: string;
-        group: string;
+        group?: string;
         author?: string;
       };
       if (!directors.includes(body.director)) {
         throw new Error("Diretor não reconhecido.");
       }
       const dashboard = buildDirectorDashboard(records, body.director);
-      if (!(body.group in dashboard.groups)) {
-        throw new Error("Público não reconhecido.");
+      const targetGroups = body.group ? [body.group] : Object.keys(dashboard.groups);
+      for (const group of targetGroups) {
+        if (!(group in dashboard.groups)) {
+          throw new Error("Público não reconhecido.");
+        }
       }
-      const summary = dashboard.groups[body.group as keyof typeof dashboard.groups];
-      const questions = summary.questions ?? [];
-      const topQuestions = [...questions]
-        .sort((a, b) => b.mean - a.mean || b.validCount - a.validCount)
-        .slice(0, 5);
-      const lowestQuestions = [...questions]
-        .filter((item) => item.mean < summary.overall.scale.max)
-        .sort((a, b) => a.mean - b.mean || b.validCount - a.validCount)
-        .slice(0, 5);
-      const content = await generateSynthesis({
-        director: body.director,
-        group: body.group,
-        submissions: summary.submissions,
-        validCount: summary.overall.validCount,
-        mean: summary.overall.mean,
-        scale: summary.overall.scale,
-        disclosureThreshold: summary.overall.disclosureThreshold,
-        limitation: summary.overall.note,
-        topQuestions,
-        lowestQuestions,
-      });
-      const created = await synthesisStore.create(
-        body.director,
-        body.group,
-        content,
-        body.author?.trim() || "IA",
-        "ia",
+      const generated = await Promise.all(
+        targetGroups.map(async (group) => {
+          const summary = dashboard.groups[group as keyof typeof dashboard.groups];
+          const questions = summary.questions ?? [];
+          const topQuestions = [...questions]
+            .sort((a, b) => b.mean - a.mean || b.validCount - a.validCount)
+            .slice(0, 5);
+          const lowestQuestions = [...questions]
+            .filter((item) => item.mean < summary.overall.scale.max)
+            .sort((a, b) => a.mean - b.mean || b.validCount - a.validCount)
+            .slice(0, 5);
+          const content = await generateSynthesis({
+            director: body.director,
+            group,
+            submissions: summary.submissions,
+            validCount: summary.overall.validCount,
+            mean: summary.overall.mean,
+            scale: summary.overall.scale,
+            disclosureThreshold: summary.overall.disclosureThreshold,
+            limitation: summary.overall.note,
+            topQuestions,
+            lowestQuestions,
+          });
+          return { group, content };
+        }),
       );
+      const created = [];
+      for (const item of generated) {
+        created.push(
+          await synthesisStore.create(
+            body.director,
+            item.group,
+            item.content,
+            body.author?.trim() || "IA",
+            "ia",
+          ),
+        );
+      }
       response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
-      response.end(JSON.stringify(created));
+      response.end(JSON.stringify(body.group ? created[0] : created));
     } catch (error) {
       response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
