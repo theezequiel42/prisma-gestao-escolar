@@ -7,6 +7,7 @@ export interface SynthesisVersion {
   author: string;
   createdAt: string;
   reviewNote: string | null;
+  generatedBy: "ia" | "humano";
 }
 
 export function createSynthesisVersion(
@@ -14,6 +15,7 @@ export function createSynthesisVersion(
   author: string,
   version = 1,
   createdAt = new Date().toISOString(),
+  generatedBy: "ia" | "humano" = "humano",
 ): SynthesisVersion {
   const fields = Object.values(content).map((value) => value.trim());
   if (!author.trim() || fields.some((value) => value.length === 0)) {
@@ -30,6 +32,7 @@ export function createSynthesisVersion(
     author: author.trim(),
     createdAt,
     reviewNote: null,
+    generatedBy,
   };
 }
 

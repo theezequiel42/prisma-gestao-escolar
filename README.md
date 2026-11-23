@@ -22,6 +22,8 @@ O incremento implementado:
 
 - reconhece a aba de respostas e diferencia as abas auxiliares;
 - reconcilia a base com 2.202 respostas, 27 diretores e 132 colunas;
+- reconhece as 230 entradas da aba oficial “Mapa das perguntas”, preservando
+  lote, colunas de origem/unificada, bloco e cabeçalho;
 - identifica grupos de perguntas e a coluna do diretor avaliado;
 - calcula indicadores apenas com valores válidos da escala de 1 a 5;
 - informa o denominador e oculta médias de grupos com menos de cinco respostas;
@@ -59,6 +61,55 @@ pais/responsáveis. Ele é uma prévia em revisão, não um portal autenticado n
 uma publicação oficial. A rota `/report.pdf?director=...` gera uma devolutiva
 individual preliminar usando o mesmo recorte do dashboard; ela não envia o
 arquivo nem libera resultados oficiais.
+
+O dashboard também apresenta formulários para criar rascunhos das três
+sínteses por público e mostra a última versão persistida de cada uma.
+Versões em rascunho podem ser aprovadas ou devolvidas para ajustes com uma
+observação obrigatória.
+
+## Geração das sínteses por IA
+
+As sínteses podem ser geradas pelo dashboard a partir somente dos agregados do
+diretor e do público. O texto não é publicado automaticamente: todo rascunho
+gerado por IA pode ser revisado e aprovado ou devolvido pela equipe.
+
+A integração usa OpenAI ou um endpoint compatível por variáveis de ambiente:
+
+```bash
+OPENAI_API_KEY="..." \
+OPENAI_MODEL="gpt-4o-mini" \
+OPENAI_BASE_URL="https://api.openai.com/v1" \
+npm start -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx
+```
+
+Para Azure OpenAI, configure `AI_PROVIDER=azure`, `AI_API_KEY`, `AI_ENDPOINT`,
+`AI_DEPLOYMENT` e opcionalmente `AI_API_VERSION`.
+
+Para Google Gemini, use:
+
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY="..."
+AI_MODEL=gemini-2.5-flash
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+```
+
+Também é possível usar `GOOGLE_API_KEY` no lugar de `GEMINI_API_KEY`.
+
+Para uso local seguro, copie `.env.example` para `.env` e preencha os valores:
+
+```bash
+cp .env.example .env
+```
+
+O arquivo `.env` já está ignorado pelo Git e não deve ser enviado em commits,
+mensagens ou capturas de tela. Não use uma chave no código-fonte ou em
+`NEXT_PUBLIC_*`/variáveis acessíveis ao navegador. Reinicie o projeto após
+alterar o arquivo.
+
+Sem credenciais configuradas, `POST /api/syntheses/generate` informa claramente
+que a IA não está disponível. Nenhum texto é fabricado como substituto do
+provedor.
 
 A API local também disponibiliza `/api/directors` e
 `/api/dashboard?director=...`, permitindo que uma futura interface web consuma

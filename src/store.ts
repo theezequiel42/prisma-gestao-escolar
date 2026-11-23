@@ -41,10 +41,17 @@ export class SynthesisStore {
     group: string,
     content: ReportSynthesis,
     author: string,
+    generatedBy: "ia" | "humano" = "humano",
   ): Promise<StoredSynthesis> {
     const previous = this.list(director, group);
     const entry: StoredSynthesis = {
-      ...createSynthesisVersion(content, author, previous.length + 1),
+      ...createSynthesisVersion(
+        content,
+        author,
+        previous.length + 1,
+        undefined,
+        generatedBy,
+      ),
       director,
       group,
     };

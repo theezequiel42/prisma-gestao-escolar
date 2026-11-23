@@ -9,6 +9,8 @@ test("reconhece a planilha inicial e mantém o estado em revisão", async () => 
 
   assert.equal(result.responseCount, 2202);
   assert.equal(result.directorCount, 27);
+  assert.equal(result.questionMap.length, 230);
+  assert.equal(result.questionMap[0].lot, "Anos Iniciais");
   assert.equal(result.status, "em_revisao");
   assert.equal(result.issues.some((item) => item.severity === "erro"), false);
 });

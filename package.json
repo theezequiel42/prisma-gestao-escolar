@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "inspect:base": "node dist/cli.js",
-    "start": "node dist/server.js",
+    "start": "node --env-file-if-exists=.env dist/server.js",
     "test": "npm run build && node --test"
   },
   "dependencies": {

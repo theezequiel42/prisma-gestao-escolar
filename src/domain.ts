@@ -23,12 +23,21 @@ export interface SheetSummary {
   kind: "respostas" | "auxiliar" | "desconhecida";
 }
 
+export interface QuestionMapEntry {
+  lot: string;
+  sourceColumn: number | null;
+  unifiedColumn: number | null;
+  block: string;
+  header: string;
+}
+
 export interface AssessmentImport {
   sourceFile: string;
   responseSheet: string | null;
   responseCount: number;
   directorCount: number;
   groups: Record<string, number>;
+  questionMap: QuestionMapEntry[];
   sheets: SheetSummary[];
   issues: ImportIssue[];
   status: "em_revisao" | "bloqueada";

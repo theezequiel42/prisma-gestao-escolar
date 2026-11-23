@@ -6,6 +6,7 @@ import type {
   AssessmentImport,
   AssessmentRecord,
   ImportIssue,
+  QuestionMapEntry,
   RespondentGroup,
   SheetSummary,
 } from "./domain.ts";
@@ -66,6 +67,32 @@ function issue(
   return { code, severity, message, sheet, column };
 }
 
+function readQuestionMap(workbook: InstanceType<typeof ExcelJS.Workbook>): QuestionMapEntry[] {
+  const sheet = workbook.worksheets.find((candidate) =>
+    normalized(candidate.name).includes("mapa"),
+  );
+  if (!sheet) return [];
+  const entries: QuestionMapEntry[] = [];
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const value = (column: number) => row.getCell(column).value;
+    const header = String(value(5) ?? "").trim();
+    if (!header) return;
+    const numeric = (column: number): number | null => {
+      const current = Number(value(column));
+      return Number.isFinite(current) ? current : null;
+    };
+    entries.push({
+      lot: String(value(1) ?? "").trim(),
+      sourceColumn: numeric(2),
+      unifiedColumn: numeric(3),
+      block: String(value(4) ?? "").trim(),
+      header: String(value(5) ?? "").trim(),
+    });
+  });
+  return entries;
+}
+
 function withoutCommentRelationships(source: Uint8Array): Uint8Array {
   const files = unzipSync(source);
   const decoder = new TextDecoder();
@@ -109,6 +136,7 @@ export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImp
       kind: classifySheet(sheet.name, sheet.rowCount),
     };
   });
+  const questionMap = readQuestionMap(workbook);
   const issues: ImportIssue[] = [];
   const responseCandidates = sheets.filter((sheet) => sheet.kind === "respostas");
   if (responseCandidates.length !== 1) {
@@ -131,6 +159,7 @@ export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImp
       responseCount: 0,
       directorCount: 0,
       groups: {},
+      questionMap,
       sheets,
       issues,
       status: "bloqueada",
@@ -200,6 +229,7 @@ export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImp
     responseCount: rows.length,
     directorCount: directors.size,
     groups,
+    questionMap,
     sheets,
     issues,
     status: issues.some((entry) => entry.severity === "erro")
