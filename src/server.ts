@@ -1,6 +1,9 @@
 import { createServer } from "node:http";
 import { buildDirectorDashboard } from "./dashboard.ts";
 import { readAssessmentRecords } from "./importer.ts";
+import { renderFeedbackPdf } from "./pdf.ts";
+import { buildFeedbackReport } from "./report.ts";
+import { checkPublication } from "./validation.ts";
 
 const sourceFile =
   process.argv[2] ?? "avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx";
@@ -52,6 +55,42 @@ function page(selectedDirector: string): string {
 createServer((request, response) => {
   const url = new URL(request.url ?? "/", `http://localhost:${port}`);
   const selectedDirector = url.searchParams.get("director") ?? directors[0];
+  if (url.pathname === "/report.pdf") {
+    const director = directors.includes(selectedDirector) ? selectedDirector : directors[0];
+    const dashboard = buildDirectorDashboard(records, director, answerKey);
+    const report = buildFeedbackReport(
+      dashboard,
+      checkPublication(
+        {
+          sourceFile,
+          responseSheet: "Dados unificados",
+          responseCount: records.length,
+          directorCount: directors.length,
+          groups: {},
+          sheets: [],
+          issues: [],
+          status: "em_revisao",
+        },
+        {
+          meanRuleApproved: false,
+          confidentialityThresholdApproved: false,
+          questionClassificationApproved: false,
+          reviewersAssigned: false,
+        },
+      ),
+    );
+    void renderFeedbackPdf(report).then((pdf) => {
+      response.writeHead(200, {
+        "content-type": "application/pdf",
+        "content-disposition": `attachment; filename="devolutiva-${encodeURIComponent(director)}.pdf"`,
+      });
+      response.end(pdf);
+    }).catch((error: unknown) => {
+      response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+      response.end(`Não foi possível gerar a devolutiva: ${String(error)}`);
+    });
+    return;
+  }
   response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
   response.end(page(directors.includes(selectedDirector) ? selectedDirector : directors[0]));
 }).listen(port, () => {

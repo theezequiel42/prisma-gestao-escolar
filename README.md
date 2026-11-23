@@ -56,7 +56,9 @@ validação institucional.
 O comando `start` inicia um dashboard local em `http://localhost:3000`, com
 seleção de diretor e cartões para professores, funcionários e
 pais/responsáveis. Ele é uma prévia em revisão, não um portal autenticado nem
-uma publicação oficial.
+uma publicação oficial. A rota `/report.pdf?director=...` gera uma devolutiva
+individual preliminar usando o mesmo recorte do dashboard; ela não envia o
+arquivo nem libera resultados oficiais.
 
 Este incremento ainda não publica resultados oficiais, não deduplica respostas
 e não presume equivalência entre perguntas pela posição ou pelo texto. O leitor
