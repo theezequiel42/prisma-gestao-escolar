@@ -45,12 +45,18 @@ etapas do produto.
 npm install
 npm test
 npm run inspect:base -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx
+npm run build && npm start -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx
 ```
 
 O comando de inspeção produz JSON com a aba reconhecida, quantidade de
 respostas, diretores, colunas agrupadas, abas auxiliares e pendências. Uma base
 com erro fica `bloqueada`; uma base reconhecida permanece `em_revisao` até a
 validação institucional.
+
+O comando `start` inicia um dashboard local em `http://localhost:3000`, com
+seleção de diretor e cartões para professores, funcionários e
+pais/responsáveis. Ele é uma prévia em revisão, não um portal autenticado nem
+uma publicação oficial.
 
 Este incremento ainda não publica resultados oficiais, não deduplica respostas
 e não presume equivalência entre perguntas pela posição ou pelo texto. O leitor

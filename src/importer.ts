@@ -4,7 +4,9 @@ import { unzipSync, zipSync } from "fflate";
 import type ExcelJsTypes from "exceljs";
 import type {
   AssessmentImport,
+  AssessmentRecord,
   ImportIssue,
+  RespondentGroup,
   SheetSummary,
 } from "./domain.ts";
 
@@ -87,13 +89,18 @@ function withoutCommentRelationships(source: Uint8Array): Uint8Array {
   return zipSync(files);
 }
 
-export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImport> {
+async function openWorkbook(sourceFile: string) {
   const workbook = new ExcelJS.Workbook();
   const source = await readFile(sourceFile);
   const sanitizedSource = Buffer.from(withoutCommentRelationships(source));
   await workbook.xlsx.load(
     sanitizedSource as unknown as Parameters<typeof workbook.xlsx.load>[0],
   );
+  return workbook;
+}
+
+export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImport> {
+  const workbook = await openWorkbook(sourceFile);
   const sheets: SheetSummary[] = workbook.worksheets.map((sheet) => {
     return {
       name: sheet.name,
@@ -199,4 +206,46 @@ export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImp
       ? "bloqueada"
       : "em_revisao",
   };
+}
+
+export async function readAssessmentRecords(
+  sourceFile: string,
+): Promise<AssessmentRecord[]> {
+  const workbook = await openWorkbook(sourceFile);
+  const responseSheet = workbook.worksheets.find(
+    (sheet) => classifySheet(sheet.name, sheet.rowCount) === "respostas",
+  );
+  if (!responseSheet) {
+    throw new Error("Nenhuma aba de respostas foi reconhecida.");
+  }
+  const headers: string[] = Array.from(
+    { length: responseSheet.columnCount },
+    (_, index) =>
+      String(responseSheet.getRow(1).getCell(index + 1).value ?? `Coluna ${index + 1}`),
+  );
+  const directorHeader = findHeader(headers, directorHeaders);
+  if (!directorHeader) {
+    throw new Error("A coluna de identificação do diretor não foi encontrada.");
+  }
+  const directorIndex = headers.indexOf(directorHeader) + 1;
+  const groupColumns = new Map<RespondentGroup, number[]>();
+  for (const [index, header] of headers.entries()) {
+    const group = inferGroup(header) as RespondentGroup | undefined;
+    if (group) {
+      groupColumns.set(group, [...(groupColumns.get(group) ?? []), index + 1]);
+    }
+  }
+  const records: AssessmentRecord[] = [];
+  responseSheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const director = String(row.getCell(directorIndex).value ?? "").trim();
+    if (!director) return;
+    for (const [group, columns] of groupColumns) {
+      const answers = Object.fromEntries(
+        columns.map((column) => [headers[column - 1], row.getCell(column).value]),
+      );
+      records.push({ director, group, answers });
+    }
+  });
+  return records;
 }
