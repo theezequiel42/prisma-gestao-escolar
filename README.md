@@ -64,6 +64,11 @@ A API local também disponibiliza `/api/directors` e
 `/api/dashboard?director=...`, permitindo que uma futura interface web consuma
 os dados sem repetir os cálculos de indicadores.
 
+O fluxo de sínteses usa armazenamento local em `.data/syntheses.json` (ou no
+caminho definido por `SYNTHESIS_STORE`) e oferece `POST /api/syntheses` para
+criação, `GET /api/syntheses?director=...&group=...` para consulta e
+`POST /api/syntheses/review` para aprovar ou devolver uma versão.
+
 Este incremento ainda não publica resultados oficiais, não deduplica respostas
 e não presume equivalência entre perguntas pela posição ou pelo texto. O leitor
 remove apenas referências XML de comentários da cópia em memória antes de

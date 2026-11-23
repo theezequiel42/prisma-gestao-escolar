@@ -3,12 +3,17 @@ import { buildDirectorDashboard } from "./dashboard.ts";
 import { readAssessmentRecords } from "./importer.ts";
 import { renderFeedbackPdf } from "./pdf.ts";
 import { buildFeedbackReport } from "./report.ts";
+import { SynthesisStore } from "./store.ts";
 import { checkPublication } from "./validation.ts";
 
 const sourceFile =
   process.argv[2] ?? "avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx";
 const port = Number(process.env.PORT ?? 3000);
 const records = await readAssessmentRecords(sourceFile);
+const synthesisStore = new SynthesisStore(
+  process.env.SYNTHESIS_STORE ?? ".data/syntheses.json",
+);
+await synthesisStore.load();
 const directors = [...new Set(records.map((record) => record.director))].sort();
 const answerKeys = Object.fromEntries(
   records.map((record) => [record.group, Object.keys(record.answers)[0]]),
@@ -54,9 +59,68 @@ function page(selectedDirector: string): string {
     <section class="cards">${cards}</section></body></html>`;
 }
 
-createServer((request, response) => {
+async function requestBody(request: import("node:http").IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://localhost:${port}`);
   const selectedDirector = url.searchParams.get("director") ?? directors[0];
+  if (url.pathname === "/api/syntheses" && request.method === "GET") {
+    const director = url.searchParams.get("director") ?? "";
+    const group = url.searchParams.get("group") ?? "";
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify(synthesisStore.list(director, group)));
+    return;
+  }
+  if (url.pathname === "/api/syntheses" && request.method === "POST") {
+    try {
+      const body = (await requestBody(request)) as {
+        director: string;
+        group: string;
+        content: { perception: string; strength: string; attention: string };
+        author: string;
+      };
+      const created = await synthesisStore.create(
+        body.director,
+        body.group,
+        body.content,
+        body.author,
+      );
+      response.writeHead(201, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(created));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
+    return;
+  }
+  if (url.pathname === "/api/syntheses/review" && request.method === "POST") {
+    try {
+      const body = (await requestBody(request)) as {
+        director: string;
+        group: string;
+        version: number;
+        decision: "aprovar" | "devolver";
+        note: string;
+      };
+      const reviewed = await synthesisStore.review(
+        body.director,
+        body.group,
+        body.version,
+        body.decision,
+        body.note,
+      );
+      response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify(reviewed));
+    } catch (error) {
+      response.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
+    return;
+  }
   if (url.pathname === "/api/directors") {
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
     response.end(JSON.stringify({ directors }));
