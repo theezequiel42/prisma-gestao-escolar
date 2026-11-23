@@ -60,6 +60,10 @@ uma publicação oficial. A rota `/report.pdf?director=...` gera uma devolutiva
 individual preliminar usando o mesmo recorte do dashboard; ela não envia o
 arquivo nem libera resultados oficiais.
 
+A API local também disponibiliza `/api/directors` e
+`/api/dashboard?director=...`, permitindo que uma futura interface web consuma
+os dados sem repetir os cálculos de indicadores.
+
 Este incremento ainda não publica resultados oficiais, não deduplica respostas
 e não presume equivalência entre perguntas pela posição ou pelo texto. O leitor
 remove apenas referências XML de comentários da cópia em memória antes de

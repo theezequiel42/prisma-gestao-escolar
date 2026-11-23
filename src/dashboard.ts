@@ -27,7 +27,7 @@ const groups: RespondentGroup[] = [
 export function buildDirectorDashboard(
   records: readonly AssessmentRecord[],
   director: string,
-  answerKey: string,
+  answerKey: string | Partial<Record<RespondentGroup, string>>,
   minimumResponses = 5,
 ): DirectorDashboard {
   const selected = records.filter((record) => record.director === director);
@@ -41,7 +41,11 @@ export function buildDirectorDashboard(
           group,
           submissions: groupRecords.length,
           overall: calculateIndicator(
-            groupRecords.map((record) => record.answers[answerKey]),
+            groupRecords.map((record) =>
+              record.answers[
+                typeof answerKey === "string" ? answerKey : answerKey[group] ?? ""
+              ],
+            ),
             { minimum: minimumResponses },
           ),
         },

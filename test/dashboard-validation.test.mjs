@@ -53,3 +53,28 @@ test("publicação permanece bloqueada sem decisões institucionais", () => {
   assert.equal(result.blockers.length, 3);
   assert.equal(result.warnings.length, 1);
 });
+
+test("usa a pergunta correspondente de cada público", () => {
+  const dashboard = buildDirectorDashboard(
+    [
+      ...Array.from({ length: 5 }, () => ({
+        director: "Diretora B",
+        group: "professores",
+        answers: { professores_q1: 4 },
+      })),
+      ...Array.from({ length: 5 }, () => ({
+        director: "Diretora B",
+        group: "funcionarios",
+        answers: { funcionarios_q1: 3 },
+      })),
+    ],
+    "Diretora B",
+    {
+      professores: "professores_q1",
+      funcionarios: "funcionarios_q1",
+    },
+  );
+
+  assert.equal(dashboard.groups.professores.overall.mean, 4);
+  assert.equal(dashboard.groups.funcionarios.overall.mean, 3);
+});

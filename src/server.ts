@@ -10,8 +10,10 @@ const sourceFile =
 const port = Number(process.env.PORT ?? 3000);
 const records = await readAssessmentRecords(sourceFile);
 const directors = [...new Set(records.map((record) => record.director))].sort();
-const answerKey = Object.keys(records[0]?.answers ?? {})[0];
-if (!answerKey) {
+const answerKeys = Object.fromEntries(
+  records.map((record) => [record.group, Object.keys(record.answers)[0]]),
+);
+if (Object.keys(answerKeys).length === 0) {
   throw new Error("Nenhuma pergunta reconhecida para montar o dashboard.");
 }
 
@@ -25,7 +27,7 @@ function escapeHtml(value: unknown): string {
 }
 
 function page(selectedDirector: string): string {
-  const dashboard = buildDirectorDashboard(records, selectedDirector, answerKey);
+  const dashboard = buildDirectorDashboard(records, selectedDirector, answerKeys);
   const cards = Object.values(dashboard.groups)
     .map(
       (group) => `
@@ -55,9 +57,20 @@ function page(selectedDirector: string): string {
 createServer((request, response) => {
   const url = new URL(request.url ?? "/", `http://localhost:${port}`);
   const selectedDirector = url.searchParams.get("director") ?? directors[0];
+  if (url.pathname === "/api/directors") {
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ directors }));
+    return;
+  }
+  if (url.pathname === "/api/dashboard") {
+    const director = directors.includes(selectedDirector) ? selectedDirector : directors[0];
+    response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify(buildDirectorDashboard(records, director, answerKeys)));
+    return;
+  }
   if (url.pathname === "/report.pdf") {
     const director = directors.includes(selectedDirector) ? selectedDirector : directors[0];
-    const dashboard = buildDirectorDashboard(records, director, answerKey);
+    const dashboard = buildDirectorDashboard(records, director, answerKeys);
     const report = buildFeedbackReport(
       dashboard,
       checkPublication(
