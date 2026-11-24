@@ -1,49 +1,54 @@
-# Avaliação de Diretores e Devolutivas
+# Avaliação de Diretores e Devolutivas — Fraiburgo
 
 ## Descrição do projeto
 
-Este projeto apoia a Secretaria Municipal de Educação na transformação dos
-resultados das avaliações de diretores em informações confiáveis,
-compreensíveis e úteis para o desenvolvimento da gestão escolar. A solução
-deverá permitir validar a base de avaliações, consultar resultados por diretor
-e público respondente, revisar sínteses e gerar devolutivas individuais em PDF,
-preservando a confidencialidade dos respondentes e a rastreabilidade dos
-indicadores.
+Este projeto apoia a **Secretaria Municipal de Educação de Fraiburgo** na transformação dos resultados das avaliações de diretores escolares em indicadores confiáveis, sínteses em linguagem simples e devolutivas individuais em PDF.
 
-A primeira entrega corresponde à Etapa A definida no
-[PRD de Avaliação de Diretores e Devolutivas](./PRD%20-%20Avalia%C3%A7%C3%A3o%20de%20Diretores%20e%20Devolutivas.md).
-Ela utiliza a planilha unificada de 2026 como fonte de entrada, sem perfis
-separados de acesso — a equipe ajusta e aprova as sínteses na mesma interface e
-encaminha externamente os PDFs de devolutiva gerados. A evolução futura prepara
-persistência em banco de dados, novos ciclos e histórico de avaliações.
+A entrega atual corresponde à **Etapa A** definida no [PRD de Avaliação de Diretores e Devolutivas](./PRD%20-%20Avalia%C3%A7%C3%A3o%20de%20Diretores%20e%20Devolutivas.md). A aplicação consome a planilha unificada de 2026 em uma **interface interna unificada** (sem perfis separados de acesso nem fluxo de devolução para ajustes): a própria equipe consulta os resultados, gera ou ajusta as sínteses diretamente na tela, aprova e baixa os PDFs de devolutiva para encaminhamento externo aos diretores.
 
-## Estado atual
+## O que está implementado
 
-O incremento implementado:
+- **Importação e auditoria da planilha (`.xlsx`):**
+  - reconhece a aba de respostas e diferencia abas auxiliares (*Origem das linhas* e *Mapa das perguntas*);
+  - reconcilia a base de 2026 com **2.202 respostas**, **27 diretores**, **132 colunas** e **230 entradas** no *Mapa das perguntas*;
+  - usa a coluna oficial `Qual o seu perfil?` e os blocos do *Mapa das perguntas* (`Docentes`, `Funcionários` e `Famílias`) para cobrir todos os lotes (Anos Iniciais, Anos Finais e Educação Infantil);
+  - remove referências XML de comentários/desenhos apenas na cópia em memória antes de ler o arquivo, evitando que anotações sejam interpretadas como dados;
+  - não deduplica respostas automaticamente e não presume equivalência entre perguntas pela posição.
+- **Indicadores e cálculo de médias:**
+  - calcula médias apenas com valores válidos da escala **1 a 5** (vazios e inválidos não viram zero);
+  - calcula médias gerais e por pergunta para **todos os 27 diretores e os três públicos** (`professores`, `funcionarios` e `pais_responsaveis`), independentemente de um número mínimo de respostas.
+- **Dashboard web unificado (`http://localhost:3000`):**
+  - estilizado com a **identidade visual oficial de Fraiburgo — Terra da Maçã** ([assets/logotipo.png](./assets/logotipo.png) e paleta cromática oficial);
+  - seleção de diretor(a) com cartões temáticos para **Professores**, **Funcionários** e **Pais / Responsáveis**;
+  - botão único **"Gerar síntese por IA"** para gerar, em uma ação, as sínteses dos três públicos do diretor selecionado;
+  - edição direta e aprovação das sínteses na mesma tela, com versionamento persistido em `.data/syntheses.json`;
+  - botão **"Baixar devolutiva (PDF)"** para exportação individual.
+- **Geração de sínteses por IA em linguagem simples:**
+  - envia à IA os dados agregados e os temas das perguntas mais bem avaliadas e menos bem avaliadas de cada público;
+  - produz textos curtos, respeitosos e cotidianos sobre as impressões a respeito do(a) diretor(a) (*Impressão geral*, *Ponto forte* e *Aspecto de atenção*), sem jargões estatísticos.
+- **Devolutiva individual em PDF (A4 paisagem):**
+  - layout institucional de 1 página com o logotipo oficial de Fraiburgo no topo branco, paleta oficial (*Inverno*, *Verão*, *Primavera*, *Outono* e *Maçã*), cartões com médias e estrelas proporcionais, painel de sínteses/destaques por público e nota metodológica;
+  - estruturado **sem repetição de informações** (cada média aparece uma única vez, sem tabelas ou gráficos redundantes nem blocos duplicados de conclusão).
 
-- reconhece a aba de respostas e diferencia as abas auxiliares;
-- reconcilia a base com 2.202 respostas, 27 diretores e 132 colunas;
-- reconhece as 230 entradas da aba oficial “Mapa das perguntas”, preservando
-  lote, colunas de origem/unificada, bloco e cabeçalho;
-- identifica grupos de perguntas e a coluna do diretor avaliado;
-- calcula indicadores apenas com valores válidos da escala de 1 a 5;
-- informa o denominador e calcula as médias para todos os diretores com respostas
-  válidas, independentemente de uma quantidade mínima de respostas;
-- monta um resumo de dashboard por diretor com os três públicos;
-- controla bloqueios para publicação oficial enquanto decisões institucionais
-  não estiverem aprovadas;
-- cria um modelo versionado de devolutiva, mantendo recorte, indicadores e
-  metodologia alinhados ao dashboard;
-- permite criar, ajustar na mesma interface e aprovar versões de sínteses por público;
-- sinaliza bases bloqueadas ou em revisão, sem publicar resultados oficiais;
-- preserva a origem dos dados e não deduplica respostas sem decisão institucional;
-- evita interpretar comentários e desenhos XML da planilha como dados.
+### Próximas etapas (Etapas B e C do PRD)
 
-Ainda não estão implementados o dashboard, a revisão de sínteses, a geração de
-PDFs e a persistência completa em banco. Esses itens fazem parte das próximas
-etapas do produto.
+- Persistência em banco de dados relacional com cadastros de pessoas, unidades, perguntas, questionários e ciclos avaliativos.
+- Classificação validada de perguntas por dimensões temáticas e exportação de PDFs em lote.
+- Acompanhamento histórico entre ciclos avaliativos, mantendo o uso interno unificado e encaminhamento externo das devolutivas.
 
-## Executar
+## Identidade visual (Fraiburgo — Terra da Maçã)
+
+Tanto a interface web quanto o PDF de devolutiva utilizam o logotipo em [assets/logotipo.png](./assets/logotipo.png) e as cores oficiais da paleta cromática de Fraiburgo:
+
+| Cor | HEX | Uso principal |
+|---|---|---|
+| **Inverno** | `#4E2412` | Títulos, cabeçalhos de seção, botão de IA e rodapé metodológico |
+| **Verão** | `#A72B2A` | Destaque institucional, público **Professores** e botão de PDF |
+| **Primavera** | `#587E3C` | Público **Funcionários**, ícones de **Ponto Forte** e aprovação |
+| **Outono** | `#DF7835` | Público **Pais / Responsáveis**, estrelas e **Aspecto de Atenção** |
+| **Maçã** | `#F0EDC5` | Faixas de aviso, subtítulos sobre fundo escuro e fundos claros quentes |
+
+## Como executar
 
 ```bash
 npm install
@@ -52,75 +57,67 @@ npm run inspect:base -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx
 npm run build && npm start -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx
 ```
 
-O comando de inspeção produz JSON com a aba reconhecida, quantidade de
-respostas, diretores, colunas agrupadas, abas auxiliares e pendências. Uma base
-com erro fica `bloqueada`; uma base reconhecida permanece `em_revisao` até a
-validação institucional.
+- `npm test` — compila o TypeScript (`tsc`) e executa a suíte de testes (`node --test`).
+- `npm run inspect:base -- <arquivo.xlsx>` — inspeciona a planilha e retorna JSON com abas reconhecidas, contagens, mapa de perguntas, pendências e status (`em_revisao` ou `bloqueada`).
+- `npm start` — inicia o servidor local em `http://localhost:3000`, carregando automaticamente `.env` quando presente (a planilha `avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx` é usada como padrão caso nenhum arquivo seja passado como argumento).
 
-O comando `start` inicia o dashboard local em `http://localhost:3000`, com
-seleção de diretor, cartões para professores, funcionários e pais/responsáveis e
-botão para baixar a devolutiva em PDF (`/report.pdf?director=...`), destinada a
-encaminhamento externo pela equipe.
+## Configuração de IA (`.env`)
 
-O dashboard também apresenta formulários para gerar, ajustar diretamente na
-mesma tela e aprovar as três sínteses por público, exibindo a última versão
-persistida de cada uma.
-
-## Geração das sínteses por IA
-
-As sínteses podem ser geradas pelo dashboard a partir dos dados agregados e das
-perguntas respondidas de cada público. Todo rascunho gerado por IA pode ser
-editado diretamente na mesma interface e aprovado pela equipe.
-
-A integração usa OpenAI ou um endpoint compatível por variáveis de ambiente:
-
-```bash
-OPENAI_API_KEY="..." \
-OPENAI_MODEL="gpt-4o-mini" \
-OPENAI_BASE_URL="https://api.openai.com/v1" \
-npm start -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx
-```
-
-Para Azure OpenAI, configure `AI_PROVIDER=azure`, `AI_API_KEY`, `AI_ENDPOINT`,
-`AI_DEPLOYMENT` e opcionalmente `AI_API_VERSION`.
-
-Para Google Gemini, use:
-
-```bash
-AI_PROVIDER=gemini
-GEMINI_API_KEY="..."
-AI_MODEL=gemini-2.5-flash
-GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-```
-
-Também é possível usar `GOOGLE_API_KEY` no lugar de `GEMINI_API_KEY`.
-
-Para uso local seguro, copie `.env.example` para `.env` e preencha os valores:
+Copie `.env.example` para `.env` e preencha as credenciais do provedor desejado:
 
 ```bash
 cp .env.example .env
 ```
 
-O arquivo `.env` já está ignorado pelo Git e não deve ser enviado em commits,
-mensagens ou capturas de tela. Não use uma chave no código-fonte ou em
-`NEXT_PUBLIC_*`/variáveis acessíveis ao navegador. Reinicie o projeto após
-alterar o arquivo.
+### Google Gemini (Google AI Studio — Free Tier ou créditos Google Cloud)
 
-Sem credenciais configuradas, `POST /api/syntheses/generate` informa claramente
-que a IA não está disponível. Nenhum texto é fabricado como substituto do
-provedor.
+```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY="sua-chave-do-google-ai-studio"
+AI_MODEL=gemini-3.5-flash-lite
+```
 
-A API local também disponibiliza `/api/directors` e
-`/api/dashboard?director=...`, permitindo que uma futura interface web consuma
-os dados sem repetir os cálculos de indicadores.
+- Também aceita `GOOGLE_API_KEY` no lugar de `GEMINI_API_KEY` e `GEMINI_BASE_URL` opcional (padrão: `https://generativelanguage.googleapis.com/v1beta/openai`).
+- Compatível com as chaves novas do Google AI Studio (prefixo `AQ.`).
 
-O fluxo de sínteses usa armazenamento local em `.data/syntheses.json` (ou no
-caminho definido por `SYNTHESIS_STORE`) e oferece `POST /api/syntheses` para
-criação/ajustes, `GET /api/syntheses?director=...&group=...` para consulta e
-`POST /api/syntheses/approve` para aprovar uma versão.
+### OpenAI ou endpoint compatível (ex.: Ollama)
 
-Este incremento ainda não publica resultados oficiais, não deduplica respostas
-e não presume equivalência entre perguntas pela posição ou pelo texto. O leitor
-remove apenas referências XML de comentários da cópia em memória antes de
-processar a planilha, evitando que anotações e desenhos de comentários sejam
-interpretados como dados.
+```env
+OPENAI_API_KEY="sua-chave"
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+### Azure OpenAI
+
+Configure `AI_PROVIDER=azure`, `AI_API_KEY`, `AI_ENDPOINT`, `AI_DEPLOYMENT` e opcionalmente `AI_API_VERSION`.
+
+> **Segurança:** o arquivo `.env` está ignorado pelo Git e nunca deve ser versionado ou compartilhado. Reinicie o servidor após qualquer alteração no `.env`. Sem credenciais configuradas, `POST /api/syntheses/generate` retorna um erro explícito sem fabricar texto substituto.
+
+## Endpoints da API local
+
+| Método e rota | Descrição |
+|---|---|
+| `GET /` | Dashboard web (aceita `?director=...`) |
+| `GET /assets/logotipo.png` | Logotipo oficial servido para a interface web |
+| `GET /api/directors` | Lista ordenada de diretores reconhecidos na planilha |
+| `GET /api/dashboard?director=...` | Indicadores gerais e por pergunta dos três públicos do diretor |
+| `GET /api/syntheses?director=...&group=...` | Histórico de versões de síntese para um diretor e público |
+| `POST /api/syntheses` | Salva nova versão (criação ou ajustes manuais) de uma síntese |
+| `POST /api/syntheses/generate` | Gera sínteses por IA para todos os públicos do diretor (ou para um `group` específico, quando informado) |
+| `POST /api/syntheses/approve` | Aprova uma versão de síntese (observação opcional) |
+| `GET /report.pdf?director=...` | Gera e baixa a devolutiva individual em PDF (A4 paisagem) |
+
+O armazenamento local de sínteses usa `.data/syntheses.json` (ou o caminho definido na variável `SYNTHESIS_STORE`).
+
+## Estrutura do projeto
+
+- `src/domain.ts` — tipos de domínio (grupos, importação, indicadores e estados).
+- `src/importer.ts` e `src/cli.ts` — leitura sanitizada de `.xlsx`, validação da planilha e CLI de inspeção.
+- `src/metrics.ts` e `src/dashboard.ts` — cálculo de médias gerais e por pergunta por diretor e público.
+- `src/ai.ts` — geração de sínteses em linguagem simples via provedor compatível com OpenAI (Gemini, OpenAI, Azure).
+- `src/synthesis.ts` e `src/store.ts` — versionamento, aprovação e persistência local das sínteses.
+- `src/validation.ts`, `src/report.ts` e `src/pdf.ts` — checagem metodológica, montagem do relatório e renderização visual do PDF.
+- `src/server.ts` — servidor HTTP com interface web unificada e endpoints JSON/PDF.
+- `assets/logotipo.png` — logotipo oficial de Fraiburgo utilizado na interface e no PDF.
+- `test/` — suítes de testes automatizados (`node --test`).

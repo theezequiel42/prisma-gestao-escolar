@@ -1,6 +1,19 @@
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
 import type { GroupDashboard, QuestionIndicator } from "./dashboard.ts";
 import type { FeedbackReport, ReportSynthesis } from "./report.ts";
+
+// Paleta oficial Fraiburgo — Terra da Maçã
+const brand = {
+  inverno: "#4E2412", // Marrom escuro institucional (PANTONE 4625 C)
+  verao: "#A72B2A", // Vermelho maçã (PANTONE 7627 C)
+  outono: "#DF7835", // Laranja terracota (PANTONE 7577 C)
+  maca: "#F0EDC5", // Creme maçã (PANTONE 7499 C)
+  primavera: "#587E3C", // Verde folha (PANTONE 7742 C)
+  textDark: "#2E1A11",
+  textMuted: "#6B5244",
+} as const;
 
 interface GroupTheme {
   key: string;
@@ -16,31 +29,46 @@ const groupThemes: Record<string, GroupTheme> = {
   professores: {
     key: "professores",
     label: "Professores",
-    bg: "#EBF4FC",
-    cardTint: "#F7FBFF",
-    border: "#7AB3E6",
-    dark: "#0B3E70",
-    accent: "#176EC2",
+    bg: "#FBF1F1",
+    cardTint: "#FDF9F9",
+    border: "#D99998",
+    dark: "#7C1E1D",
+    accent: brand.verao,
   },
   funcionarios: {
     key: "funcionarios",
     label: "Funcionários",
-    bg: "#EDF8EE",
-    cardTint: "#F6FCF7",
-    border: "#7BC188",
-    dark: "#195B2B",
-    accent: "#2D8A44",
+    bg: "#F2F6EE",
+    cardTint: "#F9FBF7",
+    border: "#A4BD91",
+    dark: "#3B5727",
+    accent: brand.primavera,
   },
   pais_responsaveis: {
     key: "pais_responsaveis",
     label: "Pais / Responsáveis",
-    bg: "#FFF3E6",
-    cardTint: "#FFFBF6",
-    border: "#F2AD66",
-    dark: "#B93C00",
-    accent: "#EE7402",
+    bg: "#FDF4EC",
+    cardTint: "#FEF9F5",
+    border: "#EAB68E",
+    dark: "#9C4A17",
+    accent: brand.outono,
   },
 };
+
+function loadBrandLogo(): Buffer | null {
+  const candidates = [
+    fileURLToPath(new URL("../assets/logotipo.png", import.meta.url)),
+    fileURLToPath(new URL("../../assets/logotipo.png", import.meta.url)),
+  ];
+  for (const path of candidates) {
+    if (existsSync(path)) {
+      return readFileSync(path);
+    }
+  }
+  return null;
+}
+
+const cachedLogo = loadBrandLogo();
 
 function formatDecimal(value: number): string {
   return value.toFixed(2).replace(".", ",");
@@ -134,69 +162,35 @@ function drawStars(
       doc.clip();
       doc
         .rect(cx - outerR, cy - outerR, outerR * 2 * fillRatio, outerR * 2)
-        .fillColor("#F5B400")
+        .fillColor(brand.outono)
         .fill();
       doc.restore();
     }
 
     doc.save();
     starPath(doc, cx, cy, outerR, innerR);
-    doc.lineWidth(1.1).strokeColor("#E09F00").stroke();
+    doc.lineWidth(1.1).strokeColor("#B9591F").stroke();
     doc.restore();
   }
 }
 
-function drawHeaderEmblem(doc: PDFKit.PDFDocument, x: number, y: number): void {
+function drawHeaderLogo(doc: PDFKit.PDFDocument, x: number, y: number): void {
+  const maxW = 84;
+  const maxH = 62;
   doc.save();
-  // Soft white backdrop behind emblem for contrast
-  doc.circle(x + 36, y + 32, 33).fillColor("#FFFFFF").fill();
-
-  // Open book pages (blue curves)
-  doc
-    .moveTo(x + 12, y + 48)
-    .quadraticCurveTo(x + 24, y + 38, x + 36, y + 49)
-    .quadraticCurveTo(x + 48, y + 38, x + 60, y + 48)
-    .lineTo(x + 56, y + 54)
-    .quadraticCurveTo(x + 46, y + 45, x + 36, y + 55)
-    .quadraticCurveTo(x + 26, y + 45, x + 16, y + 54)
-    .closePath()
-    .fillColor("#176EC2")
-    .fill();
-
-  // Stylized figures above the book (blue, gold, green)
-  // Left figure (blue)
-  doc.circle(x + 23, y + 23, 4.2).fillColor("#176EC2").fill();
-  doc
-    .moveTo(x + 17, y + 31)
-    .quadraticCurveTo(x + 23, y + 27, x + 29, y + 34)
-    .lineTo(x + 26, y + 42)
-    .lineTo(x + 20, y + 40)
-    .closePath()
-    .fillColor("#176EC2")
-    .fill();
-
-  // Center figure (gold)
-  doc.circle(x + 36, y + 17, 4.8).fillColor("#F5B400").fill();
-  doc
-    .moveTo(x + 28, y + 25)
-    .quadraticCurveTo(x + 36, y + 22, x + 44, y + 25)
-    .lineTo(x + 40, y + 42)
-    .lineTo(x + 32, y + 42)
-    .closePath()
-    .fillColor("#F5B400")
-    .fill();
-
-  // Right figure (green)
-  doc.circle(x + 49, y + 23, 4.2).fillColor("#2D8A44").fill();
-  doc
-    .moveTo(x + 43, y + 34)
-    .quadraticCurveTo(x + 49, y + 27, x + 55, y + 31)
-    .lineTo(x + 52, y + 40)
-    .lineTo(x + 46, y + 42)
-    .closePath()
-    .fillColor("#2D8A44")
-    .fill();
-
+  if (cachedLogo) {
+    doc.image(cachedLogo, x, y, {
+      fit: [maxW, maxH],
+      align: "center",
+      valign: "center",
+    });
+  } else {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .fillColor(brand.inverno)
+      .text("Fraiburgo", x, y + 22, { width: maxW, align: "center" });
+  }
   doc.restore();
 }
 
@@ -271,7 +265,6 @@ function drawGroupIcon(
       .lineTo(cx - 14 * s, cy - 1 * s)
       .closePath()
       .fill();
-    // Cutout family inside house in circleColor
     doc.fillColor(circleColor);
     doc.circle(cx - 4.2 * s, cy + 1 * s, 2.3 * s).fill();
     doc.circle(cx + 4.2 * s, cy + 1 * s, 2.3 * s).fill();
@@ -291,7 +284,12 @@ function drawBadgeIcon(
   r = 7.5,
 ): void {
   doc.save();
-  const color = kind === "check" ? "#2E8B41" : kind === "alert" ? "#EE7402" : "#176EC2";
+  const color =
+    kind === "check"
+      ? brand.primavera
+      : kind === "alert"
+        ? brand.outono
+        : brand.inverno;
   doc.circle(cx, cy, r).fillColor(color).fill();
 
   if (kind === "check") {
@@ -349,7 +347,7 @@ function drawSectionBlock(
 
   let cursorY = y + 14.5;
   const availableBodyH = Math.max(12, maxBottomY - cursorY - (subline ? 20 : 2));
-  doc.font("Helvetica").fontSize(8.3).fillColor("#1F2D3D");
+  doc.font("Helvetica").fontSize(8.3).fillColor(brand.textDark);
   const measuredBodyH = doc.heightOfString(body, { width: textW, lineGap: 1.2 });
   const usedBodyH = Math.min(measuredBodyH, availableBodyH);
   doc.text(body, textX, cursorY, {
@@ -362,7 +360,7 @@ function drawSectionBlock(
 
   if (subline && cursorY + 11 <= maxBottomY) {
     const availSubH = Math.max(10, maxBottomY - cursorY);
-    doc.font("Helvetica-Oblique").fontSize(7.4).fillColor("#4B5B6B");
+    doc.font("Helvetica-Oblique").fontSize(7.4).fillColor(brand.textMuted);
     const measuredSubH = doc.heightOfString(subline, { width: textW, lineGap: 0.8 });
     const usedSubH = Math.min(measuredSubH, availSubH);
     doc.text(subline, textX, cursorY, {
@@ -384,7 +382,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
     margin: 0,
     info: {
       Title: `Avaliação da Gestão Escolar — ${report.director}`,
-      Author: "Secretaria Municipal de Educação",
+      Author: "Secretaria Municipal de Educação de Fraiburgo",
     },
   });
 
@@ -400,52 +398,56 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   const marginX = 24;
   const contentW = pageW - marginX * 2;
 
-  // Clean white page background
-  doc.rect(0, 0, pageW, pageH).fillColor("#FFFFFF").fill();
+  // Soft warm background
+  doc.rect(0, 0, pageW, pageH).fillColor("#FCFBF6").fill();
 
-  // --- 1. HEADER BANNER ---
-  // Secondary medium-blue & gold decorative waves
+  // --- 1. HEADER BANNER (WHITE BACKGROUND MATCHING LOGO + FRAIBURGO WAVE ACCENTS) ---
   doc.save();
+  // Clean white header canvas matching logo background
+  doc.rect(0, 0, pageW, 82).fillColor("#FFFFFF").fill();
+
+  // Subtle decorative Fraiburgo ribbons strictly below header content (y = 75..88)
   doc
-    .moveTo(0, 0)
-    .lineTo(pageW, 0)
-    .lineTo(pageW, 82)
-    .bezierCurveTo(pageW * 0.78, 96, pageW * 0.62, 74, pageW * 0.45, 82)
-    .bezierCurveTo(pageW * 0.25, 92, pageW * 0.12, 86, 0, 74)
+    .moveTo(0, 77)
+    .bezierCurveTo(pageW * 0.22, 85, pageW * 0.45, 73, pageW * 0.68, 80)
+    .bezierCurveTo(pageW * 0.84, 85, pageW * 0.93, 81, pageW, 76)
+    .lineTo(pageW, 85)
+    .bezierCurveTo(pageW * 0.88, 90, pageW * 0.72, 87, pageW * 0.54, 83)
+    .bezierCurveTo(pageW * 0.32, 78, pageW * 0.16, 89, 0, 84)
     .closePath()
-    .fillColor("#1A6BC4")
+    .fillColor(brand.verao)
     .fill();
 
   doc
-    .moveTo(pageW * 0.52, 76)
-    .bezierCurveTo(pageW * 0.68, 66, pageW * 0.85, 88, pageW, 68)
-    .lineTo(pageW, 79)
-    .bezierCurveTo(pageW * 0.85, 94, pageW * 0.68, 76, pageW * 0.52, 83)
+    .moveTo(0, 75)
+    .bezierCurveTo(pageW * 0.2, 81, pageW * 0.44, 72, pageW * 0.66, 78)
+    .bezierCurveTo(pageW * 0.82, 82, pageW * 0.92, 79, pageW, 74)
+    .lineTo(pageW, 78)
+    .bezierCurveTo(pageW * 0.91, 83, pageW * 0.81, 85, pageW * 0.65, 81)
+    .bezierCurveTo(pageW * 0.44, 75, pageW * 0.2, 84, 0, 79)
     .closePath()
-    .fillColor("#F5B400")
+    .fillColor(brand.inverno)
     .fill();
 
-  // Main deep navy curved header
   doc
-    .moveTo(0, 0)
-    .lineTo(pageW, 0)
-    .lineTo(pageW, 66)
-    .bezierCurveTo(pageW * 0.82, 84, pageW * 0.68, 66, pageW * 0.5, 76)
-    .bezierCurveTo(pageW * 0.3, 86, pageW * 0.15, 76, 0, 68)
+    .moveTo(pageW * 0.48, 82)
+    .bezierCurveTo(pageW * 0.68, 78, pageW * 0.85, 89, pageW, 80)
+    .lineTo(pageW, 87)
+    .bezierCurveTo(pageW * 0.85, 94, pageW * 0.68, 84, pageW * 0.48, 86)
     .closePath()
-    .fillColor("#0B3A66")
+    .fillColor(brand.outono)
     .fill();
   doc.restore();
 
-  drawHeaderEmblem(doc, 26, 6);
+  drawHeaderLogo(doc, 26, 8);
 
-  // Header Title & Director Subtitle
-  const titleX = 114;
-  const titleW = 540;
+  // Header Title & Director Subtitle (high-contrast Fraiburgo dark tones on white)
+  const titleX = 122;
+  const titleW = 532;
   doc
     .font("Helvetica-Bold")
-    .fontSize(24)
-    .fillColor("#FFFFFF")
+    .fontSize(23.5)
+    .fillColor(brand.inverno)
     .text("Avaliação da Gestão Escolar", titleX, 13, {
       width: titleW,
       align: "center",
@@ -458,7 +460,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   doc
     .font("Helvetica-Bold")
     .fontSize(13.5)
-    .fillColor("#DCEBFA")
+    .fillColor(brand.verao)
     .text(subtitleParts.join("  |  "), titleX, 45, {
       width: titleW,
       align: "center",
@@ -470,8 +472,8 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   doc
     .font("Helvetica-BoldOblique")
     .fontSize(11)
-    .fillColor("#FFFFFF")
-    .text("Juntos por uma\neducação cada vez\nmelhor!", pageW - 172, 14, {
+    .fillColor(brand.inverno)
+    .text("Juntos por uma\neducação cada vez\nmelhor!", pageW - 172, 15, {
       width: 148,
       align: "center",
       lineGap: 1,
@@ -486,18 +488,18 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   const cardGap = 14;
   const cardCount = Math.max(1, displayEntries.length);
   const cardW = (contentW - cardGap * (cardCount - 1)) / cardCount;
-  const cardY = 98;
-  const cardH = 98;
+  const cardY = 100;
+  const cardH = 96;
 
   displayEntries.forEach(([groupKey, summary], index) => {
     const theme = groupThemes[groupKey] ?? {
       key: groupKey,
       label: groupKey,
-      bg: "#F0F4F8",
-      cardTint: "#F9FBFD",
-      border: "#9FB3C8",
-      dark: "#1F3A56",
-      accent: "#335C81",
+      bg: "#F8F6EB",
+      cardTint: "#FCFBF6",
+      border: "#C9BEA0",
+      dark: brand.inverno,
+      accent: brand.inverno,
     };
     const x = marginX + index * (cardW + cardGap);
 
@@ -508,7 +510,6 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
       .fillAndStroke(theme.bg, theme.border);
     doc.restore();
 
-    // Left circular icon
     drawGroupIcon(doc, groupKey, x + 42, cardY + 49, 27, theme.accent, true);
 
     const textX = x + 78;
@@ -551,7 +552,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
     doc
       .font("Helvetica")
       .fontSize(8.2)
-      .fillColor("#4B5B6B")
+      .fillColor(brand.textMuted)
       .text(
         `${participantLabel}  ·  escala ${summary.overall.scale.min} a ${summary.overall.scale.max}`,
         textX,
@@ -573,19 +574,19 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   doc
     .roundedRect(marginX, panelY, contentW, panelH, 12)
     .lineWidth(1.2)
-    .fillAndStroke("#FFFFFF", "#14497A");
+    .fillAndStroke("#FFFFFF", brand.inverno);
 
-  // Navy top bar inside panel
+  // Inverno top bar inside panel
   doc.save();
   doc.roundedRect(marginX, panelY, contentW, panelH, 12).clip();
-  doc.rect(marginX, panelY, contentW, barH).fillColor("#0B3A66").fill();
+  doc.rect(marginX, panelY, contentW, barH).fillColor(brand.inverno).fill();
   doc.restore();
 
-  // Gold star badge on panel header
+  // Outono star badge on panel header
   starPath(doc, marginX + 20, panelY + barH / 2, 10.5, 4.8);
-  doc.fillColor("#F5B400").fill();
+  doc.fillColor(brand.outono).fill();
   starPath(doc, marginX + 20, panelY + barH / 2, 10.5, 4.8);
-  doc.lineWidth(0.9).strokeColor("#0B3A66").stroke();
+  doc.lineWidth(0.9).strokeColor(brand.maca).stroke();
 
   doc
     .font("Helvetica-Bold")
@@ -611,11 +612,11 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
     const theme = groupThemes[groupKey] ?? {
       key: groupKey,
       label: groupKey,
-      bg: "#F0F4F8",
-      cardTint: "#F9FBFD",
-      border: "#9FB3C8",
-      dark: "#1F3A56",
-      accent: "#335C81",
+      bg: "#F8F6EB",
+      cardTint: "#FCFBF6",
+      border: "#C9BEA0",
+      dark: brand.inverno,
+      accent: brand.inverno,
     };
     const colX = marginX + colPad + index * (colW + colGap);
 
@@ -631,7 +632,6 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
     doc.restore();
     doc.restore();
 
-    // Mini icon + group label in column header
     drawGroupIcon(doc, groupKey, colX + 20, colY + colHeaderH / 2, 10, theme.accent, false);
     doc
       .font("Helvetica-Bold")
@@ -654,7 +654,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
         doc,
         "info",
         "Impressão Geral",
-        "#0B3A66",
+        brand.inverno,
         synthesis.perception,
         null,
         innerX,
@@ -670,7 +670,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
         doc,
         "check",
         "Ponto Forte",
-        "#195B2B",
+        "#3B5727",
         synthesis.strength,
         topRef,
         innerX,
@@ -687,7 +687,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
         doc,
         "alert",
         "Aspecto de Atenção",
-        "#B93C00",
+        "#9C4A17",
         synthesis.attention,
         lowRef,
         innerX,
@@ -703,7 +703,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
         doc,
         "check",
         "Ponto Forte",
-        "#195B2B",
+        "#3B5727",
         strongText,
         null,
         innerX,
@@ -720,7 +720,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
         doc,
         "alert",
         "Menor Avaliação",
-        "#B93C00",
+        "#9C4A17",
         lowText,
         null,
         innerX,
@@ -736,7 +736,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
         doc,
         "info",
         "Situação",
-        "#0B3A66",
+        brand.inverno,
         emptyNote,
         null,
         innerX,
@@ -747,48 +747,47 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
     }
   });
 
-  // --- 4. FOOTER (METHODOLOGY & MOTTO — NO REPEATED CONCLUSION) ---
-  // Bottom decorative wave
+  // --- 4. FOOTER (METHODOLOGY & MOTTO — FRAIBURGO PALETTE) ---
   doc.save();
+  // Bottom decorative wave in Verão + Primavera + Outono
   doc
-    .moveTo(0, pageH - 22)
-    .bezierCurveTo(pageW * 0.25, pageH - 12, pageW * 0.65, pageH - 6, pageW, pageH - 36)
+    .moveTo(0, pageH - 20)
+    .bezierCurveTo(pageW * 0.28, pageH - 12, pageW * 0.65, pageH - 6, pageW, pageH - 34)
     .lineTo(pageW, pageH)
     .lineTo(0, pageH)
     .closePath()
-    .fillColor("#1A6BC4")
+    .fillColor(brand.verao)
     .fill();
 
   doc
-    .moveTo(pageW * 0.58, pageH - 10)
-    .bezierCurveTo(pageW * 0.76, pageH - 16, pageW * 0.9, pageH - 26, pageW, pageH - 42)
+    .moveTo(pageW * 0.56, pageH - 10)
+    .bezierCurveTo(pageW * 0.74, pageH - 16, pageW * 0.89, pageH - 26, pageW, pageH - 42)
     .lineTo(pageW, pageH - 30)
-    .bezierCurveTo(pageW * 0.88, pageH - 14, pageW * 0.74, pageH - 8, pageW * 0.58, pageH - 4)
+    .bezierCurveTo(pageW * 0.88, pageH - 15, pageW * 0.74, pageH - 8, pageW * 0.56, pageH - 4)
     .closePath()
-    .fillColor("#F5B400")
+    .fillColor(brand.primavera)
     .fill();
   doc.restore();
 
-  // Navy methodology pill on left
+  // Inverno methodology pill on left
   const footerX = marginX;
   const footerY = 516;
   const footerW = 556;
   const footerH = 54;
 
   doc.save();
-  doc.roundedRect(footerX, footerY, footerW, footerH, 16).fillColor("#0B3A66").fill();
+  doc.roundedRect(footerX, footerY, footerW, footerH, 16).fillColor(brand.inverno).fill();
 
-  // Small info icon inside footer pill
   doc
     .circle(footerX + 27, footerY + footerH / 2, 13)
     .lineWidth(1.5)
-    .strokeColor("#F5B400")
+    .strokeColor(brand.outono)
     .stroke();
-  doc.circle(footerX + 27, footerY + footerH / 2 - 4.5, 1.6).fillColor("#FFFFFF").fill();
+  doc.circle(footerX + 27, footerY + footerH / 2 - 4.5, 1.6).fillColor(brand.maca).fill();
   doc
     .lineWidth(2.2)
     .lineCap("round")
-    .strokeColor("#FFFFFF")
+    .strokeColor(brand.maca)
     .moveTo(footerX + 27, footerY + footerH / 2 - 1)
     .lineTo(footerX + 27, footerY + footerH / 2 + 6)
     .stroke();
@@ -797,7 +796,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   doc
     .font("Helvetica-Bold")
     .fontSize(9.5)
-    .fillColor("#F5C542")
+    .fillColor(brand.maca)
     .text("Nota Metodológica", footerX + 50, footerY + 8, {
       width: footerW - 62,
       lineBreak: false,
@@ -805,12 +804,12 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
 
   const metaLine1 =
     "Médias calculadas na escala de 1 a 5 considerando todas as respostas válidas disponíveis de cada público.";
-  const metaLine2 = `Versão v${report.version}  ·  Emitido em ${formatDateBr(report.issuedAt)}  ·  Devolutiva para encaminhamento externo pela SME.`;
+  const metaLine2 = `Versão v${report.version}  ·  Emitido em ${formatDateBr(report.issuedAt)}  ·  Secretaria Municipal de Educação de Fraiburgo.`;
 
   doc
     .font("Helvetica")
     .fontSize(7.9)
-    .fillColor("#E8F1FA")
+    .fillColor("#F8F6EC")
     .text(metaLine1, footerX + 50, footerY + 22, {
       width: footerW - 62,
       lineBreak: false,
@@ -826,7 +825,7 @@ export async function renderFeedbackPdf(report: FeedbackReport): Promise<Buffer>
   doc
     .font("Helvetica-BoldOblique")
     .fontSize(12.5)
-    .fillColor("#0B3A66")
+    .fillColor(brand.inverno)
     .text("Educação de qualidade\nse constrói em parceria!", footerX + footerW + 18, footerY + 10, {
       width: contentW - footerW - 18,
       align: "center",
