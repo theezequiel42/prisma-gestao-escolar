@@ -13,6 +13,10 @@ export interface StoredSynthesis extends SynthesisVersion {
   group: string;
 }
 
+export interface SynthesisRepository extends Pick<SynthesisStore, "create" | "approve"> {
+  listAll(): StoredSynthesis[] | Promise<StoredSynthesis[]>;
+}
+
 export class SynthesisStore {
   private entries: StoredSynthesis[] = [];
   private readonly filePath: string;
@@ -37,6 +41,10 @@ export class SynthesisStore {
     return this.entries.filter(
       (entry) => entry.director === director && entry.group === group,
     );
+  }
+
+  public listAll(): StoredSynthesis[] {
+    return [...this.entries];
   }
 
   public async create(

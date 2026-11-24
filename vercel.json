@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    {
+      "src": "src/vercel.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx", "assets/logotipo.png"]
+      }
+    }
+  ],
+  "routes": [{ "src": "/(.*)", "dest": "/src/vercel.ts" }]
+}

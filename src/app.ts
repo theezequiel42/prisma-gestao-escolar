@@ -7,7 +7,7 @@ import { buildDirectorDashboard, type DirectorDashboard } from "./dashboard.ts";
 import { respondentGroups, type AssessmentRecord, type RespondentGroup } from "./domain.ts";
 import { renderFeedbackPdf } from "./pdf.ts";
 import { buildFeedbackReport, type ReportSynthesis } from "./report.ts";
-import type { StoredSynthesis, SynthesisStore } from "./store.ts";
+import type { StoredSynthesis, SynthesisRepository } from "./store.ts";
 import { checkPublication } from "./validation.ts";
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -37,10 +37,12 @@ class HttpError extends Error {
 
 export interface AppOptions {
   records: readonly AssessmentRecord[];
-  synthesisStore: SynthesisStore;
+  synthesisStore?: SynthesisRepository;
   sourceFile: string;
   aiProvider?: AiProvider;
   logoBuffer?: Buffer | null;
+  readOnly?: boolean;
+  basePath?: "/admin";
 }
 
 function loadDefaultLogo(): Buffer | null {
@@ -183,7 +185,15 @@ function renderMetaLine(latest: StoredSynthesis | undefined, totalVersions: numb
 }
 
 export function createApp(options: AppOptions): Server {
-  const { records, synthesisStore, sourceFile, aiProvider } = options;
+  return createServer(createRequestHandler(options));
+}
+
+export function createRequestHandler(options: AppOptions) {
+  const { records, synthesisStore, sourceFile, aiProvider, basePath = "" } = options;
+  const readOnly = options.readOnly ?? !synthesisStore;
+  async function readSyntheses(): Promise<StoredSynthesis[]> {
+    return !readOnly && synthesisStore ? await synthesisStore.listAll() : [];
+  }
   const brandLogoBuffer =
     options.logoBuffer === undefined ? loadDefaultLogo() : options.logoBuffer;
 
@@ -204,14 +214,18 @@ export function createApp(options: AppOptions): Server {
   const inferredCycleFromFile = sourceFile.match(/\b(20\d{2})\b/)?.[1] ?? null;
   const generatingDirectors = new Set<string>();
 
-  function countApprovedGroups(director: string): number {
+  function versionsFor(entries: readonly StoredSynthesis[], director: string, group: string): StoredSynthesis[] {
+    return entries.filter((entry) => entry.director === director && entry.group === group);
+  }
+
+  function countApprovedGroups(director: string, entries: readonly StoredSynthesis[]): number {
     return respondentGroups.filter((group) => {
-      const latest = synthesisStore.list(director, group).at(-1);
+      const latest = versionsFor(entries, director, group).at(-1);
       return latest?.status === "aprovada";
     }).length;
   }
 
-  function buildReportForDirector(director: string) {
+  function buildReportForDirector(director: string, entries: readonly StoredSynthesis[]) {
     const dashboard = dashboardsByDirector.get(director)!;
     const inferredCycle = dashboard.cycle ?? inferredCycleFromFile;
     let maxVersion = 1;
@@ -219,7 +233,7 @@ export function createApp(options: AppOptions): Server {
 
     const syntheses = Object.fromEntries(
       respondentGroups.map((group) => {
-        const versions = synthesisStore.list(director, group);
+        const versions = versionsFor(entries, director, group);
         const latest = versions.at(-1);
         if (latest && latest.version > maxVersion) maxVersion = latest.version;
         const preferred =
@@ -258,7 +272,7 @@ export function createApp(options: AppOptions): Server {
     );
   }
 
-  function renderPage(selectedDirector: string): string {
+  function renderPage(selectedDirector: string, entries: readonly StoredSynthesis[]): string {
     const dashboard = dashboardsByDirector.get(selectedDirector)!;
     const cards = Object.values(dashboard.groups)
       .map(
@@ -278,7 +292,7 @@ export function createApp(options: AppOptions): Server {
 
     const synthesisForms = respondentGroups
       .map((group) => {
-        const versions = synthesisStore.list(selectedDirector, group);
+        const versions = versionsFor(entries, selectedDirector, group);
         const latest = versions.at(-1);
         const latestContent = latest?.content;
         const statusClass = latest?.status === "aprovada" ? "badge-approved" : "badge-draft";
@@ -322,11 +336,11 @@ export function createApp(options: AppOptions): Server {
 
     const directorOptions = directors
       .map((director) => {
-        const approved = countApprovedGroups(director);
+        const approved = countApprovedGroups(director, entries);
         const prefix = approved === respondentGroups.length ? "✓ " : "";
         return `<option value="${escapeHtml(director)}" data-name="${escapeHtml(director)}" ${
           director === selectedDirector ? "selected" : ""
-        }>${escapeHtml(`${prefix}${director} (${approved}/${respondentGroups.length})`)}</option>`;
+        }>${escapeHtml(readOnly ? director : `${prefix}${director} (${approved}/${respondentGroups.length})`)}</option>`;
       })
       .join("");
 
@@ -428,25 +442,25 @@ export function createApp(options: AppOptions): Server {
     </header>
     <main id="app" data-director="${escapeHtml(selectedDirector)}">
       <div class="toolbar">
-        <form id="director-form" method="get" action="/">
+        <form id="director-form" method="get" action="${basePath}/">
           <label for="director">Diretor(a): </label>
           <select id="director" name="director">${directorOptions}</select>
         </form>
         <div class="toolbar-actions">
-          <a class="btn btn-pdf" href="/report.pdf?director=${encodeURIComponent(selectedDirector)}">Baixar devolutiva (PDF)</a>
-          <a class="btn btn-zip" href="/reports.zip">Baixar todos (ZIP)</a>
+          <a class="btn btn-pdf" href="${basePath}/report.pdf?director=${encodeURIComponent(selectedDirector)}">Baixar devolutiva (PDF)</a>
+          <a class="btn btn-zip" href="${basePath}/reports.zip">Baixar todos (ZIP)</a>
         </div>
       </div>
-      <p class="notice">Ajuste e aprove as sínteses diretamente nesta tela — salvar um cartão não apaga o que você estiver editando nos outros. Os PDFs seguem a identidade visual oficial de Fraiburgo para encaminhamento externo.</p>
-      <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+      <p class="notice">${readOnly ? "Consulta pública dos resultados da avaliação." : "Ajuste e aprove as sínteses diretamente nesta tela — salvar um cartão não apaga o que você estiver editando nos outros. Os PDFs seguem a identidade visual oficial de Fraiburgo para encaminhamento externo."}</p>
       <section class="cards">${cards}</section>
+      ${readOnly ? "" : `<div id="feedback" class="feedback" role="status" aria-live="polite"></div>
       <div class="section-bar">
         <h2>Sínteses por público</h2>
         <button type="button" id="btn-generate-all" class="btn-ai">Gerar síntese por IA</button>
       </div>
-      <section class="cards">${synthesisForms}</section>
+      <section class="cards">${synthesisForms}</section>`}
     </main>
-    <script>
+    ${readOnly ? `<script>document.getElementById('director').addEventListener('change', () => document.getElementById('director-form').submit());</script>` : `<script>
       (() => {
         const app = document.getElementById('app');
         const director = app.dataset.director;
@@ -538,7 +552,7 @@ export function createApp(options: AppOptions): Server {
             submitBtn.disabled = true;
             const data = Object.fromEntries(new FormData(form));
             try {
-              const response = await fetch('/api/syntheses', {
+              const response = await fetch('${basePath}/api/syntheses', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
@@ -577,7 +591,7 @@ export function createApp(options: AppOptions): Server {
           submitBtn.disabled = true;
           const data = Object.fromEntries(new FormData(form));
           try {
-            const response = await fetch('/api/syntheses/approve', {
+            const response = await fetch('${basePath}/api/syntheses/approve', {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ director, group, version, note: data.note || '' }),
@@ -603,7 +617,7 @@ export function createApp(options: AppOptions): Server {
           generateBtn.disabled = true;
           generateBtn.textContent = 'Gerando sínteses...';
           try {
-            const response = await fetch('/api/syntheses/generate', {
+            const response = await fetch('${basePath}/api/syntheses/generate', {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ director, author: 'IA' }),
@@ -624,14 +638,27 @@ export function createApp(options: AppOptions): Server {
           }
         });
       })();
-    </script></body></html>`;
+    </script>`}</body></html>`;
   }
 
-  return createServer(async (request, response) => {
+  return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     try {
       const hostHeader = request.headers.host ?? "localhost";
       const url = new URL(request.url ?? "/", `http://${hostHeader}`);
       const method = request.method ?? "GET";
+
+      if (basePath) {
+        if (!url.pathname.startsWith(`${basePath}/`)) {
+          writeText(response, 404, "Página não encontrada.");
+          return;
+        }
+        url.pathname = url.pathname.slice(basePath.length);
+      }
+
+      if ((readOnly || !synthesisStore) && (url.pathname === "/api/syntheses" || url.pathname.startsWith("/api/syntheses/"))) {
+        writeJson(response, method === "GET" ? 404 : 405, { error: "Painel público somente para consulta." });
+        return;
+      }
 
       if (url.pathname === "/assets/logotipo.png") {
         if (method !== "GET") {
@@ -651,7 +678,7 @@ export function createApp(options: AppOptions): Server {
         return;
       }
 
-      if (url.pathname === "/api/syntheses/generate") {
+      if (synthesisStore && url.pathname === "/api/syntheses/generate") {
         if (method !== "POST") {
           writeJson(response, 405, { error: "Método não permitido." }, { allow: "POST" });
           return;
@@ -722,11 +749,11 @@ export function createApp(options: AppOptions): Server {
         return;
       }
 
-      if (url.pathname === "/api/syntheses") {
+      if (synthesisStore && url.pathname === "/api/syntheses") {
         if (method === "GET") {
           const director = url.searchParams.get("director") ?? "";
           const group = url.searchParams.get("group") ?? "";
-          writeJson(response, 200, synthesisStore.list(director, group));
+          writeJson(response, 200, versionsFor(await readSyntheses(), director, group));
           return;
         }
         if (method === "POST") {
@@ -752,7 +779,7 @@ export function createApp(options: AppOptions): Server {
         return;
       }
 
-      if (url.pathname === "/api/syntheses/approve") {
+      if (synthesisStore && url.pathname === "/api/syntheses/approve") {
         if (method !== "POST") {
           writeJson(response, 405, { error: "Método não permitido." }, { allow: "POST" });
           return;
@@ -806,7 +833,7 @@ export function createApp(options: AppOptions): Server {
         }
         const requested = url.searchParams.get("director") ?? directors[0];
         const director = directorSet.has(requested) ? requested : directors[0];
-        const report = buildReportForDirector(director);
+        const report = buildReportForDirector(director, await readSyntheses());
         const pdf = await renderFeedbackPdf(report);
         response.writeHead(200, {
           ...securityHeaders,
@@ -824,8 +851,9 @@ export function createApp(options: AppOptions): Server {
         }
         const files: Record<string, Uint8Array> = {};
         const usedNames = new Set<string>();
+        const entries = await readSyntheses();
         for (const director of directors) {
-          const report = buildReportForDirector(director);
+          const report = buildReportForDirector(director, entries);
           const pdf = await renderFeedbackPdf(report);
           let slug = sanitizeAsciiFilename(director);
           let suffix = 2;
@@ -853,11 +881,12 @@ export function createApp(options: AppOptions): Server {
         }
         const requested = url.searchParams.get("director") ?? directors[0];
         const director = directorSet.has(requested) ? requested : directors[0];
+        const html = renderPage(director, await readSyntheses());
         response.writeHead(200, {
           ...securityHeaders,
           "content-type": "text/html; charset=utf-8",
         });
-        response.end(renderPage(director));
+        response.end(html);
         return;
       }
 
@@ -887,5 +916,5 @@ export function createApp(options: AppOptions): Server {
       console.error("[server] Erro interno:", error);
       writeJson(response, 500, { error: "Erro interno ao processar a solicitação." });
     }
-  });
+  };
 }

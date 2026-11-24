@@ -61,6 +61,12 @@ npm run build && npm start -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xl
 - `npm run inspect:base -- <arquivo.xlsx>` — inspeciona a planilha e retorna JSON com abas reconhecidas, contagens, mapa de perguntas, pendências e status (`em_revisao` ou `bloqueada`).
 - `npm start` — inicia o servidor local em `http://127.0.0.1:3000` (configurável por `HOST` e `PORT`), carregando automaticamente `.env` quando presente (a planilha `avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx` é usada como padrão caso nenhum arquivo seja passado como argumento).
 
+## Administração na Vercel
+
+- O painel público é somente para consulta. Rascunhos e histórico de sínteses ficam na área administrativa, em `/admin/`, inclusive os PDFs que incluem sínteses.
+- Vincule um PostgreSQL Neon ao ambiente Production para fornecer `DATABASE_URL`. Para proteger a área administrativa, configure `ADMIN_PASSWORD` como variável sensível, com uma senha aleatória de pelo menos 24 caracteres: `npx --yes vercel env add ADMIN_PASSWORD --environment production --sensitive`. O usuário do login é `admin`.
+- Configure `GEMINI_API_KEY` no ambiente Production para a geração por IA. Não inclua credenciais em arquivos versionados ou comandos com valores explícitos.
+
 ## Configuração de IA (`.env`)
 
 Copie `.env.example` para `.env` e preencha as credenciais do provedor desejado:
