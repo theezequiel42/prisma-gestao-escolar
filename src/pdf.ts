@@ -86,9 +86,11 @@ function formatDateBr(iso: string): string {
 
 function cleanQuestionText(text: string, maxLength = 105): string {
   const cleaned = text
-    .replace(/^\s*\d+\s*(?:[-.)]\s*|\s+)/, "")
-    .replace(/^["“]+|["”]+$/g, "")
+    .replace(/\u00A0/g, " ")
     .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(?:\d+\s*[-.)]?\s+)+/, "")
+    .replace(/^["“]+|["”]+$/g, "")
     .trim();
   if (cleaned.length <= maxLength) return cleaned;
   const slice = cleaned.slice(0, maxLength - 1);

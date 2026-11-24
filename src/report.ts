@@ -28,6 +28,7 @@ export function buildFeedbackReport(
   publication: PublicationCheck,
   syntheses: Record<string, ReportSynthesis | null> = {},
   issuedAt = new Date().toISOString(),
+  version = 1,
 ): FeedbackReport {
   const groups = Object.fromEntries(
     Object.entries(dashboard.groups).map(([group, summary]) => [group, summary]),
@@ -36,7 +37,7 @@ export function buildFeedbackReport(
   const firstIndicator = allIndicators[0];
   const disclosureThreshold = firstIndicator?.disclosureThreshold ?? 1;
   return {
-    version: 1,
+    version,
     state: publication.state,
     issuedAt,
     director: dashboard.director,

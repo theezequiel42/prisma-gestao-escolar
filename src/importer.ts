@@ -234,15 +234,29 @@ export async function inspectWorkbook(sourceFile: string): Promise<AssessmentImp
       })
       .filter(Boolean),
   );
-  const groups = Object.fromEntries(
-    headers
-      .map((header) => [header, inferGroup(header)] as const)
-      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
-      .reduce<Map<string, number>>((counts, [, group]) => {
-        counts.set(group, (counts.get(group) ?? 0) + 1);
-        return counts;
-      }, new Map()),
-  );
+  const profileHeader = headers.find((header) => normalized(header).includes("perfil"));
+  const profileIndex = profileHeader ? headers.indexOf(profileHeader) + 1 : 0;
+  let groups: Record<string, number>;
+  if (profileIndex > 0) {
+    const profileCounts = new Map<string, number>();
+    for (const row of rows) {
+      const group = inferProfileGroup(row.getCell(profileIndex).value);
+      if (group) {
+        profileCounts.set(group, (profileCounts.get(group) ?? 0) + 1);
+      }
+    }
+    groups = Object.fromEntries(profileCounts);
+  } else {
+    groups = Object.fromEntries(
+      headers
+        .map((header) => [header, inferGroup(header)] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+        .reduce<Map<string, number>>((counts, [, group]) => {
+          counts.set(group, (counts.get(group) ?? 0) + 1);
+          return counts;
+        }, new Map()),
+    );
+  }
   if (directors.size === 0) {
     issues.push(
       issue(

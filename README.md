@@ -21,8 +21,8 @@ A entrega atual corresponde à **Etapa A** definida no [PRD de Avaliação de Di
   - estilizado com a **identidade visual oficial de Fraiburgo — Terra da Maçã** ([assets/logotipo.png](./assets/logotipo.png) e paleta cromática oficial);
   - seleção de diretor(a) com cartões temáticos para **Professores**, **Funcionários** e **Pais / Responsáveis**;
   - botão único **"Gerar síntese por IA"** para gerar, em uma ação, as sínteses dos três públicos do diretor selecionado;
-  - edição direta e aprovação das sínteses na mesma tela, com versionamento persistido em `.data/syntheses.json`;
-  - botão **"Baixar devolutiva (PDF)"** para exportação individual.
+  - edição direta e aprovação das sínteses na mesma tela (sem recarregar a página e sem perder edições em andamento nos demais cartões), com indicador de progresso por diretor no seletor e versionamento atômico persistido em `.data/syntheses.json`;
+  - botões **"Baixar devolutiva (PDF)"** (individual) e **"Baixar todos (ZIP)"** (lote completo dos 27 diretores).
 - **Geração de sínteses por IA em linguagem simples:**
   - envia à IA os dados agregados e os temas das perguntas mais bem avaliadas e menos bem avaliadas de cada público;
   - produz textos curtos, respeitosos e cotidianos sobre as impressões a respeito do(a) diretor(a) (*Impressão geral*, *Ponto forte* e *Aspecto de atenção*), sem jargões estatísticos.
@@ -59,7 +59,7 @@ npm run build && npm start -- avaliacao_diretores_2026_unificada_sem_nome_cpf.xl
 
 - `npm test` — compila o TypeScript (`tsc`) e executa a suíte de testes (`node --test`).
 - `npm run inspect:base -- <arquivo.xlsx>` — inspeciona a planilha e retorna JSON com abas reconhecidas, contagens, mapa de perguntas, pendências e status (`em_revisao` ou `bloqueada`).
-- `npm start` — inicia o servidor local em `http://localhost:3000`, carregando automaticamente `.env` quando presente (a planilha `avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx` é usada como padrão caso nenhum arquivo seja passado como argumento).
+- `npm start` — inicia o servidor local em `http://127.0.0.1:3000` (configurável por `HOST` e `PORT`), carregando automaticamente `.env` quando presente (a planilha `avaliacao_diretores_2026_unificada_sem_nome_cpf.xlsx` é usada como padrão caso nenhum arquivo seja passado como argumento).
 
 ## Configuração de IA (`.env`)
 
@@ -107,6 +107,7 @@ Configure `AI_PROVIDER=azure`, `AI_API_KEY`, `AI_ENDPOINT`, `AI_DEPLOYMENT` e op
 | `POST /api/syntheses/generate` | Gera sínteses por IA para todos os públicos do diretor (ou para um `group` específico, quando informado) |
 | `POST /api/syntheses/approve` | Aprova uma versão de síntese (observação opcional) |
 | `GET /report.pdf?director=...` | Gera e baixa a devolutiva individual em PDF (A4 paisagem) |
+| `GET /reports.zip` | Gera e baixa um arquivo ZIP com as devolutivas em PDF de todos os diretores |
 
 O armazenamento local de sínteses usa `.data/syntheses.json` (ou o caminho definido na variável `SYNTHESIS_STORE`).
 
@@ -118,6 +119,6 @@ O armazenamento local de sínteses usa `.data/syntheses.json` (ou o caminho defi
 - `src/ai.ts` — geração de sínteses em linguagem simples via provedor compatível com OpenAI (Gemini, OpenAI, Azure).
 - `src/synthesis.ts` e `src/store.ts` — versionamento, aprovação e persistência local das sínteses.
 - `src/validation.ts`, `src/report.ts` e `src/pdf.ts` — checagem metodológica, montagem do relatório e renderização visual do PDF.
-- `src/server.ts` — servidor HTTP com interface web unificada e endpoints JSON/PDF.
+- `src/app.ts` e `src/server.ts` — aplicação HTTP com cabeçalhos de segurança, proteção anti-CSRF, validação de entrada, interface web unificada e endpoints JSON/PDF/ZIP.
 - `assets/logotipo.png` — logotipo oficial de Fraiburgo utilizado na interface e no PDF.
 - `test/` — suítes de testes automatizados (`node --test`).

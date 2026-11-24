@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ReportSynthesis } from "./report.ts";
 import {
@@ -7,7 +8,7 @@ import {
   type SynthesisVersion,
 } from "./synthesis.ts";
 
-interface StoredSynthesis extends SynthesisVersion {
+export interface StoredSynthesis extends SynthesisVersion {
   director: string;
   group: string;
 }
@@ -15,6 +16,7 @@ interface StoredSynthesis extends SynthesisVersion {
 export class SynthesisStore {
   private entries: StoredSynthesis[] = [];
   private readonly filePath: string;
+  private writeQueue: Promise<void> = Promise.resolve();
 
   public constructor(filePath: string) {
     this.filePath = filePath;
@@ -23,7 +25,8 @@ export class SynthesisStore {
   public async load(): Promise<void> {
     try {
       const content = await readFile(this.filePath, "utf8");
-      this.entries = JSON.parse(content) as StoredSynthesis[];
+      const parsed = JSON.parse(content);
+      this.entries = Array.isArray(parsed) ? (parsed as StoredSynthesis[]) : [];
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       this.entries = [];
@@ -43,21 +46,23 @@ export class SynthesisStore {
     author: string,
     generatedBy: "ia" | "humano" = "humano",
   ): Promise<StoredSynthesis> {
-    const previous = this.list(director, group);
-    const entry: StoredSynthesis = {
-      ...createSynthesisVersion(
-        content,
-        author,
-        previous.length + 1,
-        undefined,
-        generatedBy,
-      ),
-      director,
-      group,
-    };
-    this.entries.push(entry);
-    await this.persist();
-    return entry;
+    return this.enqueue(async () => {
+      const previous = this.list(director, group);
+      const entry: StoredSynthesis = {
+        ...createSynthesisVersion(
+          content,
+          author,
+          previous.length + 1,
+          undefined,
+          generatedBy,
+        ),
+        director,
+        group,
+      };
+      this.entries.push(entry);
+      await this.persist();
+      return entry;
+    });
   }
 
   public async approve(
@@ -66,26 +71,45 @@ export class SynthesisStore {
     version: number,
     note = "",
   ): Promise<StoredSynthesis> {
-    const index = this.entries.findIndex(
-      (entry) =>
-        entry.director === director &&
-        entry.group === group &&
-        entry.version === version,
+    return this.enqueue(async () => {
+      const index = this.entries.findIndex(
+        (entry) =>
+          entry.director === director &&
+          entry.group === group &&
+          entry.version === version,
+      );
+      if (index < 0) throw new Error("Versão de síntese não encontrada.");
+      const current = this.entries[index];
+      const updated: StoredSynthesis = {
+        ...approveSynthesis(current, note),
+        director,
+        group,
+      };
+      this.entries[index] = updated;
+      await this.persist();
+      return updated;
+    });
+  }
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.writeQueue.then(operation, operation);
+    this.writeQueue = next.then(
+      () => undefined,
+      () => undefined,
     );
-    if (index < 0) throw new Error("Versão de síntese não encontrada.");
-    const current = this.entries[index];
-    const updated: StoredSynthesis = {
-      ...approveSynthesis(current, note),
-      director,
-      group,
-    };
-    this.entries[index] = updated;
-    await this.persist();
-    return updated;
+    return next;
   }
 
   private async persist(): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, `${JSON.stringify(this.entries, null, 2)}\n`, "utf8");
+    const tempPath = `${this.filePath}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+    const payload = `${JSON.stringify(this.entries, null, 2)}\n`;
+    try {
+      await writeFile(tempPath, payload, { encoding: "utf8", mode: 0o600 });
+      await rename(tempPath, this.filePath);
+    } catch (error) {
+      await unlink(tempPath).catch(() => undefined);
+      throw error;
+    }
   }
 }
